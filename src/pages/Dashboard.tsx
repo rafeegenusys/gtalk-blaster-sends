@@ -4,35 +4,35 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { MessageSquare, CreditCard, Users, Clock } from "lucide-react";
 
-// Sample data with properly typed messageType
+// Sample data with properly typed messageType and status
 const recentActivities = [
   { 
     id: "1", 
     recipient: "John Doe", 
     messageType: "SMS" as "SMS", 
     date: "Today, 10:30 AM", 
-    status: "Delivered" 
+    status: "Delivered" as "Delivered" 
   },
   { 
     id: "2", 
     recipient: "Customer Group (15)", 
     messageType: "MMS" as "MMS", 
     date: "Yesterday, 3:15 PM", 
-    status: "Delivered" 
+    status: "Delivered" as "Delivered" 
   },
   { 
     id: "3", 
     recipient: "Mary Smith", 
     messageType: "SMS" as "SMS", 
     date: "Yesterday, 1:45 PM", 
-    status: "Failed" 
+    status: "Failed" as "Failed" 
   },
   { 
     id: "4", 
     recipient: "Leads Group (8)", 
     messageType: "SMS" as "SMS", 
     date: "04/08/2025, 9:00 AM", 
-    status: "Pending" 
+    status: "Pending" as "Pending" 
   },
 ];
 
