@@ -4,7 +4,7 @@ import { MessageComposer } from "@/components/messages/MessageComposer";
 import { ContactsList } from "@/components/messages/ContactsList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Users, MessageSquare, Template } from "lucide-react";
+import { UserPlus, Users, MessageSquare, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 // Sample data
@@ -55,7 +55,7 @@ const Messages = () => {
             <span className="hidden sm:inline">Add Contact</span>
           </Button>
           <Button className="flex items-center gap-2 bg-gtalkblue hover:bg-blue-600">
-            <Template className="h-4 w-4" />
+            <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Use Template</span>
           </Button>
         </div>
