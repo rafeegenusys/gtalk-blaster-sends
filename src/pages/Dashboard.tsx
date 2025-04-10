@@ -34,7 +34,7 @@ const recentActivities = [
     date: "04/08/2025, 9:00 AM", 
     status: "Pending" 
   },
-] as const;
+];
 
 const Dashboard = () => {
   return (

@@ -9,7 +9,9 @@ import {
   Users, 
   MessageCircle,
   Settings,
-  CreditCard
+  CreditCard,
+  Inbox,
+  Send
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +37,16 @@ const menuItems = [
     title: "Messages",
     url: "/messages",
     icon: MessageSquare,
+  },
+  {
+    title: "Inbox",
+    url: "/inbox",
+    icon: Inbox,
+  },
+  {
+    title: "Sent",
+    url: "/sent",
+    icon: Send,
   },
   {
     title: "Templates",
@@ -82,9 +94,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="py-3 px-4 text-base">
                     <Link to={item.url} className="flex items-center">
-                      <item.icon className="mr-2" size={18} />
+                      <item.icon className="mr-3" size={20} />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>

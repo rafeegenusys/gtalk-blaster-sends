@@ -14,6 +14,8 @@ import Contacts from "@/pages/Contacts";
 import Chat from "@/pages/Chat";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
+import Inbox from "@/pages/Inbox";
+import Sent from "@/pages/Sent";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,8 @@ const App = () => (
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Index />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="inbox" element={<Inbox />} />
+            <Route path="sent" element={<Sent />} />
             <Route path="templates" element={<Templates />} />
             <Route path="schedule" element={<Schedule />} />
             <Route path="contacts" element={<Contacts />} />
