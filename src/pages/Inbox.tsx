@@ -181,7 +181,7 @@ const Inbox = () => {
         </div>
       </div>
       
-      <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+      <div className="flex flex-col md:flex-row gap-2 md:items-center justify-between">
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative flex-grow md:w-80">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -293,7 +293,7 @@ const Inbox = () => {
             </CardHeader>
             
             <div className="flex flex-col h-full">
-              <div className="flex-grow overflow-auto p-4">
+              <div className="flex-grow overflow-auto p-4 ">
                 <div className="space-y-4">
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg p-3 max-w-[80%]">
