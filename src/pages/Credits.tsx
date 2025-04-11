@@ -41,11 +41,23 @@ const CreditsPage = () => {
         throw new Error("Could not find associated business");
       }
 
-      // Update business credits
+      // First get the current credits balance
+      const { data: businessData, error: getBusinessError } = await supabase
+        .from('businesses')
+        .select('credits_balance')
+        .eq('id', profileData.business_id)
+        .single();
+        
+      if (getBusinessError) throw getBusinessError;
+      
+      // Calculate the new balance
+      const newBalance = (businessData?.credits_balance || 0) + creditAmount;
+      
+      // Update business credits with the new balance
       const { error: updateError } = await supabase
         .from('businesses')
         .update({ 
-          credits_balance: supabase.sql`credits_balance + ${creditAmount}`,
+          credits_balance: newBalance,
           updated_at: new Date().toISOString()
         })
         .eq('id', profileData.business_id);
