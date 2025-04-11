@@ -1,57 +1,20 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { 
-  Phone, 
-  MessageSquare, 
-  Search, 
-  User, 
-  Star, 
-  Tag, 
-  X, 
-  Send, 
-  Paperclip, 
-  ChevronLeft,
-  Circle,
-  MoreVertical,
-  Clock,
-  CheckCheck
-} from "lucide-react";
-
-type Contact = {
-  id: string;
-  name: string;
-  phone: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unread?: boolean;
-  missedCall?: boolean;
-  status?: "online" | "offline" | "away";
-  company?: string;
-  email?: string;
-  notes?: string;
-};
-
-type Message = {
-  id: string;
-  content: string;
-  timestamp: string;
-  type: "incoming" | "outgoing";
-  status?: "sent" | "delivered" | "read" | "failed";
-};
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MessageFilters } from "@/components/messaging/MessageFilters";
+import { ContactList, Contact } from "@/components/messaging/ContactList";
+import { MessageThread, Message } from "@/components/messaging/MessageThread";
+import { ContactDetails } from "@/components/messaging/ContactDetails";
+import { NewMessage } from "@/components/messaging/NewMessage";
+import { NotificationBell } from "@/components/messaging/NotificationBell";
+import { PenSquare, Plus } from "lucide-react";
 
 const Messaging = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [messageText, setMessageText] = useState("");
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
-  const [contactNote, setContactNote] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
   const [contacts, setContacts] = useState<Contact[]>([
     {
       id: "1",
@@ -129,17 +92,38 @@ const Messaging = () => {
   });
 
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [mobileView, setMobileView] = useState<'contacts' | 'conversation' | 'details'>('contacts');
 
-  const handleSendMessage = () => {
-    if (!activeContact || !messageText.trim()) return;
-    
-    const newMessage = {
-      id: `m${Date.now()}`,
-      content: messageText,
-      timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-      type: "outgoing" as const,
-      status: "sent" as const
+  // Reset welcome message visibility on page load
+  useEffect(() => {
+    // Clear any previous toast handlers when the component mounts
+    return () => {
+      toast.dismiss();
     };
+  }, []);
+
+  const handleSendMessage = (text: string, scheduledTime?: Date) => {
+    if (!activeContact) return;
+    
+    const newMessage: Message = {
+      id: `m${Date.now()}`,
+      content: text,
+      timestamp: scheduledTime 
+        ? 'Scheduled' 
+        : new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      type: "outgoing",
+      status: scheduledTime ? "scheduled" : "sent"
+    };
+    
+    if (scheduledTime) {
+      newMessage.scheduledTime = scheduledTime.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
     
     setMessages(prev => ({
       ...prev,
@@ -149,353 +133,235 @@ const Messaging = () => {
     // Update the contact's last message
     setContacts(prev => prev.map(contact => 
       contact.id === activeContact.id
-        ? { ...contact, lastMessage: messageText, lastMessageTime: 'Just now', unread: false }
+        ? { 
+            ...contact, 
+            lastMessage: text, 
+            lastMessageTime: scheduledTime ? 'Scheduled' : 'Just now', 
+            unread: false 
+          }
         : contact
     ));
     
-    setMessageText("");
-    
-    // Simulate message delivered after a delay
-    setTimeout(() => {
-      setMessages(prev => {
-        const contactMessages = [...prev[activeContact.id]];
-        const lastIndex = contactMessages.length - 1;
-        
-        contactMessages[lastIndex] = {
-          ...contactMessages[lastIndex],
-          status: "delivered"
-        };
-        
-        return {
-          ...prev,
-          [activeContact.id]: contactMessages
-        };
-      });
-    }, 1500);
+    // Simulate message delivered after a delay if not scheduled
+    if (!scheduledTime) {
+      setTimeout(() => {
+        setMessages(prev => {
+          const contactMessages = [...prev[activeContact.id]];
+          const lastIndex = contactMessages.length - 1;
+          
+          contactMessages[lastIndex] = {
+            ...contactMessages[lastIndex],
+            status: "delivered"
+          };
+          
+          return {
+            ...prev,
+            [activeContact.id]: contactMessages
+          };
+        });
+      }, 1500);
+    }
   };
 
-  const handleUpdateContact = () => {
-    if (!activeContact) return;
-    
-    const updatedContact = {
-      ...activeContact,
-      notes: contactNote
-    };
-    
+  const handleContactUpdate = (updatedContact: Contact) => {
     setContacts(prev => prev.map(contact => 
-      contact.id === activeContact.id ? updatedContact : contact
+      contact.id === updatedContact.id ? updatedContact : contact
     ));
     
     setActiveContact(updatedContact);
+  };
+
+  const handleNewMessageSend = (phoneNumber: string, message: string) => {
+    // Check if contact with this phone number already exists
+    const existingContact = contacts.find(c => c.phone === phoneNumber);
+    
+    if (existingContact) {
+      // Send message to existing contact
+      setActiveContact(existingContact);
+      handleSendMessage(message);
+    } else {
+      // Create new contact and send message
+      const newContact: Contact = {
+        id: `new-${Date.now()}`,
+        name: "",
+        phone: phoneNumber,
+        lastMessage: message,
+        lastMessageTime: "Just now"
+      };
+      
+      setContacts(prev => [...prev, newContact]);
+      
+      // Create new message thread
+      setMessages(prev => ({
+        ...prev,
+        [newContact.id]: [{
+          id: `m-new-${Date.now()}`,
+          content: message,
+          timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          type: "outgoing",
+          status: "sent"
+        }]
+      }));
+      
+      setActiveContact(newContact);
+    }
+    
+    setShowNewMessage(false);
+    setMobileView('conversation');
     
     toast({
-      title: "Contact updated",
-      description: "Contact notes have been saved",
+      title: "Message sent",
+      description: "Your message has been sent successfully",
     });
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleFilterChange = (filter: string) => {
+    setSelectedFilter(filter);
   };
 
-  const filteredContacts = contacts.filter(contact => 
-    (contact.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
-    contact.phone.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusIcon = (message: Message) => {
-    switch(message.status) {
-      case "sent": return <Clock className="h-3 w-3 text-muted-foreground" />;
-      case "delivered": return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case "read": return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case "failed": return <X className="h-3 w-3 text-red-500" />;
-      default: return null;
+  const renderMobileView = () => {
+    if (showNewMessage) {
+      return (
+        <NewMessage 
+          onSend={handleNewMessageSend} 
+          onBack={() => setShowNewMessage(false)} 
+        />
+      );
+    }
+    
+    switch (mobileView) {
+      case 'contacts':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center p-3 border-b">
+              <h2 className="font-semibold text-lg">Messages</h2>
+              <div className="flex items-center gap-2">
+                <NotificationBell />
+                <Button 
+                  size="icon" 
+                  onClick={() => setShowNewMessage(true)}
+                >
+                  <PenSquare className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <MessageFilters onFilterChange={handleFilterChange} />
+            <ContactList
+              contacts={contacts}
+              activeContact={activeContact}
+              setActiveContact={(contact) => {
+                setActiveContact(contact);
+                setMobileView('conversation');
+              }}
+              filter={selectedFilter}
+            />
+          </div>
+        );
+        
+      case 'conversation':
+        return (
+          <MessageThread
+            activeContact={activeContact}
+            messages={activeContact ? messages[activeContact.id] || [] : []}
+            onSendMessage={handleSendMessage}
+            onBackClick={() => setMobileView('contacts')}
+            showBackButton={true}
+          />
+        );
+        
+      case 'details':
+        return activeContact ? (
+          <div className="h-full flex flex-col">
+            <div className="p-3 border-b flex items-center">
+              <Button 
+                variant="ghost" 
+                onClick={() => setMobileView('conversation')}
+                className="mr-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h3 className="font-medium">Contact Details</h3>
+            </div>
+            <ContactDetails
+              contact={activeContact}
+              onContactUpdate={handleContactUpdate}
+            />
+          </div>
+        ) : null;
     }
   };
 
   return (
     <Dashboard title="Messaging">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 h-[calc(100vh-9rem)] border rounded-md overflow-hidden bg-background">
-        {/* Left Column - Contacts */}
-        <div className="md:col-span-3 border-r">
-          <div className="p-3 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search messages..." 
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="pl-8"
-              />
+      {isMobile ? (
+        <div className="h-[calc(100vh-4rem)]">
+          {renderMobileView()}
+        </div>
+      ) : (
+        <div className="grid grid-cols-12 h-[calc(100vh-4rem)] overflow-hidden bg-background">
+          {/* Left Column - Contacts */}
+          <div className="col-span-3 flex flex-col h-full border rounded-l-md">
+            <div className="flex justify-between items-center p-3 border-b">
+              <h2 className="font-semibold text-lg">Messages</h2>
+              <div className="flex items-center gap-2">
+                <NotificationBell />
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowNewMessage(true)}
+                  className="gap-1"
+                >
+                  <Plus className="h-4 w-4" /> New
+                </Button>
+              </div>
             </div>
+            <MessageFilters onFilterChange={handleFilterChange} />
+            <ContactList
+              contacts={contacts}
+              activeContact={activeContact}
+              setActiveContact={setActiveContact}
+              filter={selectedFilter}
+            />
           </div>
           
-          <ScrollArea className="h-[calc(100%-56px)]">
-            {filteredContacts.map(contact => (
-              <div 
-                key={contact.id}
-                className={`p-3 border-b cursor-pointer hover:bg-muted/30 transition-colors ${activeContact?.id === contact.id ? 'bg-muted/50' : ''}`}
-                onClick={() => setActiveContact(contact)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    {contact.name ? contact.name.charAt(0).toUpperCase() : <User size={18} />}
+          {/* Middle Column - Messages */}
+          <div className="col-span-5 flex flex-col h-full border-t border-b">
+            {showNewMessage ? (
+              <NewMessage 
+                onSend={handleNewMessageSend} 
+                onBack={() => setShowNewMessage(false)} 
+              />
+            ) : (
+              <MessageThread
+                activeContact={activeContact}
+                messages={activeContact ? messages[activeContact.id] || [] : []}
+                onSendMessage={handleSendMessage}
+              />
+            )}
+          </div>
+          
+          {/* Right Column - Contact Details */}
+          <div className="col-span-4 h-full border rounded-r-md">
+            {activeContact ? (
+              <ContactDetails
+                contact={activeContact}
+                onContactUpdate={handleContactUpdate}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-center p-8 h-full">
+                <div>
+                  <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                    <User className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between">
-                      <span className={`font-medium truncate ${contact.unread ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {contact.name || contact.phone}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {contact.lastMessageTime}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1">
-                      {contact.missedCall && (
-                        <Phone className="h-3 w-3 text-red-500" />
-                      )}
-                      
-                      <p className={`text-sm truncate ${contact.unread ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {contact.lastMessage}
-                      </p>
-                    </div>
-                    
-                    {contact.unread && (
-                      <div className="mt-1">
-                        <Circle className="h-2 w-2 fill-primary text-primary" />
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="text-lg font-medium mb-2">No contact selected</h3>
+                  <p className="text-muted-foreground">
+                    Select a conversation to view contact details
+                  </p>
                 </div>
               </div>
-            ))}
-          </ScrollArea>
+            )}
+          </div>
         </div>
-        
-        {/* Middle Column - Messages */}
-        <div className="md:col-span-5 border-r flex flex-col">
-          {activeContact ? (
-            <>
-              <div className="p-3 border-b flex items-center justify-between bg-muted/20">
-                <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="md:hidden"
-                    onClick={() => setActiveContact(null)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    {activeContact.name ? activeContact.name.charAt(0).toUpperCase() : <User size={16} />}
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-medium">
-                      {activeContact.name || "Unknown"}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {activeContact.phone}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" title="Call">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" title="More">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <ScrollArea className="flex-1 p-4 bg-muted/10">
-                {messages[activeContact.id]?.map((message) => (
-                  <div 
-                    key={message.id} 
-                    className={`mb-4 flex ${message.type === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[80%] ${message.type === 'outgoing' ? 'order-2' : 'order-1'}`}>
-                      <div className={`p-3 rounded-2xl ${
-                        message.type === 'outgoing' 
-                          ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                          : 'bg-muted rounded-tl-none'
-                      }`}>
-                        <p>{message.content}</p>
-                      </div>
-                      
-                      <div className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${
-                        message.type === 'outgoing' ? 'justify-end' : 'justify-start'
-                      }`}>
-                        <span>{message.timestamp}</span>
-                        {message.type === 'outgoing' && getStatusIcon(message)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </ScrollArea>
-              
-              <div className="p-3 border-t">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  
-                  <Input 
-                    placeholder="Type a message..." 
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  
-                  <Button 
-                    onClick={handleSendMessage}
-                    disabled={!messageText.trim()}
-                    size="icon" 
-                    className="text-white bg-primary hover:bg-primary/90"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-center p-8">
-              <div>
-                <MessageSquare className="h-12 w-12 mb-4 mx-auto text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No conversation selected</h3>
-                <p className="text-muted-foreground">
-                  Select a contact from the list to start messaging
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Right Column - Contact Details */}
-        <div className="hidden md:block md:col-span-4">
-          {activeContact ? (
-            <div className="h-full flex flex-col">
-              <div className="p-4 border-b bg-muted/20">
-                <h3 className="font-medium text-lg">Contact Details</h3>
-              </div>
-              
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Basic Info</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">Name</label>
-                        <Input 
-                          value={activeContact.name || ''} 
-                          placeholder="Add name" 
-                          onChange={(e) => setActiveContact({...activeContact, name: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">Phone</label>
-                        <Input value={activeContact.phone} readOnly />
-                      </div>
-                      
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">Company</label>
-                        <Input 
-                          value={activeContact.company || ''} 
-                          placeholder="Add company" 
-                          onChange={(e) => setActiveContact({...activeContact, company: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">Email</label>
-                        <Input 
-                          value={activeContact.email || ''} 
-                          placeholder="Add email" 
-                          onChange={(e) => setActiveContact({...activeContact, email: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-muted-foreground">Tags</h4>
-                      <Button variant="ghost" size="sm" className="h-8 text-xs gap-1">
-                        <Tag className="h-3 w-3" /> Add Tag
-                      </Button>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-muted">
-                        Customer <X className="h-3 w-3" />
-                      </Badge>
-                      <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-muted">
-                        Follow-up <X className="h-3 w-3" />
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 text-xs"
-                        onClick={handleUpdateContact}
-                      >
-                        Save Notes
-                      </Button>
-                    </div>
-                    
-                    <Textarea 
-                      placeholder="Add notes about this contact..." 
-                      className="min-h-[120px]"
-                      value={contactNote || activeContact.notes || ''}
-                      onChange={(e) => setContactNote(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button className="flex-1 gap-1">
-                      <Phone className="h-4 w-4" /> Call
-                    </Button>
-                    <Button variant="outline" className="flex-1 gap-1">
-                      <Star className="h-4 w-4" /> Favorite
-                    </Button>
-                  </div>
-                </div>
-              </ScrollArea>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-center p-8">
-              <div>
-                <User className="h-12 w-12 mb-4 mx-auto text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No contact selected</h3>
-                <p className="text-muted-foreground">
-                  Select a conversation to view contact details
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </Dashboard>
   );
 };
