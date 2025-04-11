@@ -1,20 +1,15 @@
 
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check, Clock, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface ActivityItem {
+export interface ActivityItem {
   id: string;
-  recipient: string;
-  messageType: "SMS" | "MMS";
-  date: string;
-  status: "Delivered" | "Failed" | "Pending";
+  type: "sent" | "received" | "scheduled" | "failed";
+  contact: string;
+  phone: string;
+  message: string;
+  timestamp: string;
 }
 
 interface RecentActivityProps {
@@ -22,52 +17,65 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ activities }: RecentActivityProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Delivered":
-        return "bg-green-500";
-      case "Failed":
-        return "bg-gtalkred";
-      case "Pending":
-        return "bg-yellow-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b">
-        <h3 className="font-medium">Recent Activity</h3>
-      </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Recipient</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {activities.map((activity) => (
-              <TableRow key={activity.id}>
-                <TableCell className="font-medium">{activity.recipient}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{activity.messageType}</Badge>
-                </TableCell>
-                <TableCell>{activity.date}</TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(activity.status)}>
-                    {activity.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <Card className="col-span-1 row-span-3">
+      <CardHeader>
+        <CardTitle>Recent Activity</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {activities.map((activity) => (
+            <div key={activity.id} className="flex items-start space-x-4">
+              <div className="mt-1">
+                <StatusIcon type={activity.type} />
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium leading-none">{activity.contact}</p>
+                  <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">{activity.phone}</p>
+                <p className="text-sm line-clamp-2">{activity.message}</p>
+              </div>
+            </div>
+          ))}
+          
+          {activities.length === 0 && (
+            <p className="text-sm text-center text-muted-foreground py-4">
+              No recent activity to display
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
+}
+
+function StatusIcon({ type }: { type: ActivityItem["type"] }) {
+  switch (type) {
+    case "sent":
+      return (
+        <div className="p-1 rounded-full bg-green-100">
+          <Check className="w-3 h-3 text-green-600" />
+        </div>
+      );
+    case "received":
+      return (
+        <div className="p-1 rounded-full bg-blue-100">
+          <Check className="w-3 h-3 text-gtalk-primary" />
+        </div>
+      );
+    case "scheduled":
+      return (
+        <div className="p-1 rounded-full bg-yellow-100">
+          <Clock className="w-3 h-3 text-yellow-600" />
+        </div>
+      );
+    case "failed":
+      return (
+        <div className="p-1 rounded-full bg-red-100">
+          <X className="w-3 h-3 text-gtalk-accent" />
+        </div>
+      );
+  }
 }
