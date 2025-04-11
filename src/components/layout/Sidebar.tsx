@@ -11,7 +11,8 @@ import {
   MessageCircle,
   BarChart,
   Menu,
-  X
+  X,
+  DollarSign // New import for credits icon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -92,6 +93,13 @@ export function Sidebar({ className }: SidebarProps) {
           label="Team Chat" 
           path="/chat" 
           active={location.pathname === '/chat'} 
+          expanded={expanded} 
+        />
+        <NavItem 
+          icon={<DollarSign />} 
+          label="Credits" 
+          path="/credits" 
+          active={location.pathname === '/credits'} 
           expanded={expanded} 
         />
         <NavItem 
