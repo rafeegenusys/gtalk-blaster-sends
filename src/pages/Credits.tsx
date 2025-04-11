@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { CreditCard, RefreshCcw } from "lucide-react";
+import { CreditCard, RefreshCcw, ChevronLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const CREDIT_PACKAGES = [
   { amount: 500, price: 5.99, name: "Starter Pack" },
@@ -16,8 +17,49 @@ const CREDIT_PACKAGES = [
 
 const CreditsPage = () => {
   const [customAmount, setCustomAmount] = useState('');
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      fetchCurrentBalance();
+    }
+  }, [user]);
+
+  const fetchCurrentBalance = async () => {
+    try {
+      // Get the user's business ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('business_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (profileError || !profileData?.business_id) {
+        throw new Error("Could not find associated business");
+      }
+
+      // Get the current credits balance
+      const { data: businessData, error: getBusinessError } = await supabase
+        .from('businesses')
+        .select('credits_balance')
+        .eq('id', profileData.business_id)
+        .single();
+        
+      if (getBusinessError) throw getBusinessError;
+      
+      setCurrentBalance(businessData?.credits_balance || 0);
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      toast({
+        title: "Error",
+        description: "Could not fetch current balance",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleRecharge = async (creditAmount: number) => {
     if (!user) {
@@ -64,6 +106,8 @@ const CreditsPage = () => {
 
       if (updateError) throw updateError;
 
+      setCurrentBalance(newBalance);
+      
       toast({
         title: "Credits Recharged",
         description: `Successfully added ${creditAmount} credits to your account`,
@@ -82,9 +126,25 @@ const CreditsPage = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 flex items-center">
-        <CreditCard className="mr-2" /> Recharge Credits
-      </h1>
+      <div className="flex items-center mb-6">
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="mr-2"
+          onClick={() => navigate('/')}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-2xl font-bold flex items-center">
+          <CreditCard className="mr-2" /> Recharge Credits
+        </h1>
+      </div>
+      
+      {currentBalance !== null && (
+        <div className="mb-6 p-4 bg-muted rounded-lg">
+          <p className="text-lg">Current Balance: <span className="font-bold">{currentBalance} Credits</span></p>
+        </div>
+      )}
       
       <div className="grid md:grid-cols-3 gap-6">
         {CREDIT_PACKAGES.map((pkg) => (
