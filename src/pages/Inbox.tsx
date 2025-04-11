@@ -181,7 +181,7 @@ const Inbox = () => {
         </div>
       </div>
       
-      <div className="flex flex-col md:flex-row gap-2 md:items-center justify-between">
+      <div className="flex md:flex-row gap-2 md:items-center justify-between">
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative flex-grow md:w-80">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
