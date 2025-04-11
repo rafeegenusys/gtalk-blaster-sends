@@ -200,7 +200,6 @@ const Messaging = () => {
               <Input 
                 placeholder="Search conversations..." 
                 className="h-9"
-                prefixIcon={<Search className="h-4 w-4 text-muted-foreground" />}
               />
               <Button variant="outline" size="icon" title="Filter">
                 <Filter className="h-4 w-4" />
