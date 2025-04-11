@@ -32,10 +32,10 @@ serve(async (req) => {
   }
 
   try {
-    // Update the credits in the business table
+    // Update the credits in the business table using the function we created in SQL
     const { error } = await supabaseClient.rpc('deduct_credits', {
-      business_id,
-      amount,
+      p_business_id: business_id,
+      p_amount: amount,
     })
 
     if (error) throw error;

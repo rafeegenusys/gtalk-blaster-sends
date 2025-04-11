@@ -1,10 +1,12 @@
 
-CREATE OR REPLACE FUNCTION public.deduct_credits(business_id UUID, amount INTEGER)
+CREATE OR REPLACE FUNCTION public.deduct_credits(p_business_id UUID, p_amount INTEGER)
 RETURNS void
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+BEGIN
   UPDATE public.businesses
-  SET credits_balance = GREATEST(credits_balance - amount, 0)
-  WHERE id = business_id;
+  SET credits_balance = GREATEST(credits_balance - p_amount, 0)
+  WHERE id = p_business_id;
+END;
 $$;
