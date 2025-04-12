@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,13 @@ import { MessageThread, Message } from "@/components/messaging/MessageThread";
 import { ContactDetails } from "@/components/messaging/ContactDetails";
 import { NewMessage } from "@/components/messaging/NewMessage";
 import { NotificationBell } from "@/components/messaging/NotificationBell";
-import { PenSquare, Plus } from "lucide-react";
+import { 
+  ChevronLeft,
+  MessageSquare,
+  PenSquare, 
+  Plus, 
+  User 
+} from "lucide-react";
 
 const Messaging = () => {
   const [showNewMessage, setShowNewMessage] = useState(false);
@@ -99,7 +106,8 @@ const Messaging = () => {
   useEffect(() => {
     // Clear any previous toast handlers when the component mounts
     return () => {
-      toast.dismiss();
+      // Instead of calling toast.dismiss(), we'll just let the toasts expire naturally
+      // or we could use the toast context's dismiss method if needed
     };
   }, []);
 
@@ -367,3 +375,4 @@ const Messaging = () => {
 };
 
 export default Messaging;
+

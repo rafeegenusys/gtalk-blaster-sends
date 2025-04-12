@@ -144,6 +144,26 @@ export function MessageThread({
     }
   };
 
+  // Fixed the dialog close functionality
+  const handleSelectAISuggestion = (suggestion: string) => {
+    setMessageText(suggestion);
+    // Using querySelector with optional chaining and type assertion
+    const closeButton = document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.click();
+    }
+  };
+
+  // Fixed the dialog close functionality for templates
+  const handleSelectTemplate = (template: string) => {
+    setMessageText(template);
+    // Using querySelector with optional chaining and type assertion
+    const closeButton = document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]') as HTMLButtonElement | null;
+    if (closeButton) {
+      closeButton.click();
+    }
+  };
+
   if (!activeContact) {
     return (
       <div className="flex-1 flex items-center justify-center text-center p-8">
@@ -246,10 +266,7 @@ export function MessageThread({
                   <div 
                     key={index} 
                     className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => {
-                      setMessageText(suggestion);
-                      document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]')?.click();
-                    }}
+                    onClick={() => handleSelectAISuggestion(suggestion)}
                   >
                     {suggestion}
                   </div>
@@ -273,10 +290,7 @@ export function MessageThread({
                   <div 
                     key={index} 
                     className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => {
-                      setMessageText(template);
-                      document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]')?.click();
-                    }}
+                    onClick={() => handleSelectTemplate(template)}
                   >
                     {template}
                   </div>
