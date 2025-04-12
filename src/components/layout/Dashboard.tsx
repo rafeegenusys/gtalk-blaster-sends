@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Bell, MessageSquare, Plus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   children: ReactNode;
@@ -13,9 +14,14 @@ interface DashboardProps {
 
 export function Dashboard({ children, title = 'Dashboard' }: DashboardProps) {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleNewMessage = () => {
+    navigate('/messaging');
   };
 
   return (
@@ -31,9 +37,12 @@ export function Dashboard({ children, title = 'Dashboard' }: DashboardProps) {
               <Bell size={20} />
             </Button>
             
-            <Button className="bg-gtalk-primary text-white hover:bg-gtalk-primary/90">
+            <Button 
+              className="bg-gtalk-primary text-white hover:bg-gtalk-primary/90"
+              onClick={handleNewMessage}
+            >
               <Plus size={16} className="mr-2" />
-              <span>New Message</span>
+              <span className="hidden sm:inline">New Message</span>
             </Button>
 
             <Button variant="ghost" size="sm" onClick={handleSignOut}>

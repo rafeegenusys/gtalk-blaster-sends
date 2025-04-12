@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -70,6 +71,7 @@ export function MessageThread({
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState<string>("08:00");
   const [timezone, setTimezone] = useState("America/New_York");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -144,7 +146,7 @@ export function MessageThread({
     }
   };
 
-  // Fixed the dialog close functionality
+  // Properly handle dialog closing
   const handleSelectAISuggestion = (suggestion: string) => {
     setMessageText(suggestion);
     // Using querySelector with optional chaining and type assertion
@@ -154,7 +156,7 @@ export function MessageThread({
     }
   };
 
-  // Fixed the dialog close functionality for templates
+  // Properly handle dialog closing for templates
   const handleSelectTemplate = (template: string) => {
     setMessageText(template);
     // Using querySelector with optional chaining and type assertion
@@ -162,6 +164,18 @@ export function MessageThread({
     if (closeButton) {
       closeButton.click();
     }
+  };
+
+  const handleInsertEmoji = (emoji: string) => {
+    setMessageText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleAttachmentClick = () => {
+    toast({
+      title: "Attachment feature",
+      description: "This feature will be available soon",
+    });
   };
 
   if (!activeContact) {
@@ -249,7 +263,7 @@ export function MessageThread({
       </ScrollArea>
       
       <div className="p-3 border-t">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-xs h-8">
@@ -272,6 +286,7 @@ export function MessageThread({
                   </div>
                 ))}
               </div>
+              <DialogClose className="sr-only">Close</DialogClose>
             </DialogContent>
           </Dialog>
 
@@ -296,22 +311,52 @@ export function MessageThread({
                   </div>
                 ))}
               </div>
+              <DialogClose className="sr-only">Close</DialogClose>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground"
+            onClick={handleAttachmentClick}
+          >
             <Paperclip className="h-4 w-4" />
           </Button>
           
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground"
+            onClick={handleAttachmentClick}
+          >
             <Image className="h-4 w-4" />
           </Button>
           
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Smile className="h-4 w-4" />
-          </Button>
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-muted-foreground">
+                <Smile className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2">
+              <div className="grid grid-cols-8 gap-1">
+                {["😀", "😊", "😂", "🥰", "😍", "😎", "👍", "🙏", 
+                "🎉", "💯", "⭐", "❤️", "🔥", "👏", "✅", "🤔",
+                "👋", "👀", "💪", "🚀", "👌", "👍", "✨", "😁"].map(emoji => (
+                  <button 
+                    key={emoji} 
+                    className="p-1 text-xl hover:bg-muted rounded cursor-pointer"
+                    onClick={() => handleInsertEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           
           <Input 
             placeholder="Type a message..." 

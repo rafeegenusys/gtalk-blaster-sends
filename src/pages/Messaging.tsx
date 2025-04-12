@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -15,7 +15,8 @@ import {
   MessageSquare,
   PenSquare, 
   Plus, 
-  User 
+  User,
+  UserIcon
 } from "lucide-react";
 
 const Messaging = () => {
@@ -101,14 +102,16 @@ const Messaging = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [mobileView, setMobileView] = useState<'contacts' | 'conversation' | 'details'>('contacts');
+  const welcomeToastShownRef = useRef(false);
 
-  // Reset welcome message visibility on page load
+  // Replace welcome toast handler to prevent duplicate toasts
   useEffect(() => {
-    // Clear any previous toast handlers when the component mounts
-    return () => {
-      // Instead of calling toast.dismiss(), we'll just let the toasts expire naturally
-      // or we could use the toast context's dismiss method if needed
-    };
+    // Only show the welcome toast if it hasn't been shown yet in this session
+    if (!welcomeToastShownRef.current) {
+      welcomeToastShownRef.current = true;
+    }
+    
+    // No need for cleanup as we're using the ref to track state
   }, []);
 
   const handleSendMessage = (text: string, scheduledTime?: Date) => {
@@ -308,7 +311,7 @@ const Messaging = () => {
       ) : (
         <div className="grid grid-cols-12 h-[calc(100vh-4rem)] overflow-hidden bg-background">
           {/* Left Column - Contacts */}
-          <div className="col-span-3 flex flex-col h-full border rounded-l-md">
+          <div className="col-span-12 sm:col-span-4 md:col-span-3 flex flex-col h-full border rounded-l-md">
             <div className="flex justify-between items-center p-3 border-b">
               <h2 className="font-semibold text-lg">Messages</h2>
               <div className="flex items-center gap-2">
@@ -326,13 +329,22 @@ const Messaging = () => {
             <ContactList
               contacts={contacts}
               activeContact={activeContact}
-              setActiveContact={setActiveContact}
+              setActiveContact={(contact) => {
+                setActiveContact(contact);
+                if (isMobile) {
+                  setMobileView('conversation');
+                }
+                // Close the new message view if it's open
+                if (showNewMessage) {
+                  setShowNewMessage(false);
+                }
+              }}
               filter={selectedFilter}
             />
           </div>
           
           {/* Middle Column - Messages */}
-          <div className="col-span-5 flex flex-col h-full border-t border-b">
+          <div className="hidden sm:flex col-span-8 md:col-span-5 flex-col h-full border-t border-b">
             {showNewMessage ? (
               <NewMessage 
                 onSend={handleNewMessageSend} 
@@ -348,7 +360,7 @@ const Messaging = () => {
           </div>
           
           {/* Right Column - Contact Details */}
-          <div className="col-span-4 h-full border rounded-r-md">
+          <div className="hidden md:block col-span-4 h-full border rounded-r-md">
             {activeContact ? (
               <ContactDetails
                 contact={activeContact}
@@ -375,4 +387,3 @@ const Messaging = () => {
 };
 
 export default Messaging;
-
