@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Clock, X } from "lucide-react";
+import { Check, Clock, ScrollText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ActivityItem {
@@ -19,11 +19,12 @@ interface RecentActivityProps {
 export function RecentActivity({ activities }: RecentActivityProps) {
   return (
     <Card className="col-span-1 row-span-3">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle>Recent Activity</CardTitle>
+        <div className="text-sm text-muted-foreground">Last 10 activities</div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[500px] overflow-auto pr-2">
           {activities.map((activity) => (
             <div key={activity.id} className="flex items-start space-x-4">
               <div className="mt-1">

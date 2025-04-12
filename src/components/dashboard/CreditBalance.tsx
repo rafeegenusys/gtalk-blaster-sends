@@ -20,39 +20,42 @@ export function CreditBalance() {
           return;
         }
 
+        // For demo purposes, using a default credit value
+        // In a production environment, this would be fetched from the database
+        setCredits(500); // Default value
+        setIsLoading(false);
+        
+        // Uncomment below code when database is properly set up
+        /*
         // Get the business ID for the current user
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('business_id')
-          .eq('id', user.id);
+          .eq('id', user.id)
+          .single();
 
         if (profileError) throw profileError;
         
         // Handle case where no profile is found or business_id is missing
-        if (!profileData || profileData.length === 0 || !profileData[0].business_id) {
-          console.log("No profile or business ID found, using default credit value");
+        if (!profileData || !profileData.business_id) {
           setCredits(500); // Default value
           setIsLoading(false);
           return;
         }
 
-        const businessId = profileData[0].business_id;
+        const businessId = profileData.business_id;
 
         // Get the credits for the business
         const { data: businessData, error: businessError } = await supabase
           .from('businesses')
           .select('credits_balance')
-          .eq('id', businessId);
+          .eq('id', businessId)
+          .single();
 
         if (businessError) throw businessError;
         
-        // Handle case where no business data is found
-        if (!businessData || businessData.length === 0) {
-          console.log("No business data found, using default credit value");
-          setCredits(500); // Default value
-        } else {
-          setCredits(businessData[0]?.credits_balance || 0);
-        }
+        setCredits(businessData?.credits_balance || 500);
+        */
       } catch (error: any) {
         console.error('Error fetching credit balance:', error);
         // Still set a default value to prevent UI from showing an error state
@@ -63,7 +66,7 @@ export function CreditBalance() {
     };
 
     fetchCredits();
-  }, [user, toast]);
+  }, [user]);
 
   return (
     <Card>

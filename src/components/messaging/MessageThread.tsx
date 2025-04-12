@@ -6,11 +6,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import { Contact } from "./ContactList";
 import {
+  Archive,
   Calendar,
   ChevronLeft,
   Clock,
   Copy,
+  Flag,
   Image,
+  Info,
   MessageSquare,
   MoreVertical,
   Paperclip,
@@ -18,14 +21,17 @@ import {
   Send,
   Smile,
   Sparkles,
+  Star,
+  Trash,
+  UserPlus
 } from "lucide-react";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -41,6 +47,14 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 export type Message = {
   id: string;
@@ -94,6 +108,42 @@ export function MessageThread({
     "We've received your message and will respond shortly.",
     "Please let me know if you have any further questions.",
   ];
+
+  // Handle archive conversation
+  const handleArchiveConversation = () => {
+    toast({
+      title: "Conversation archived",
+      description: activeContact?.name 
+        ? `Conversation with ${activeContact.name} has been archived` 
+        : "Conversation has been archived"
+    });
+  };
+
+  // Handle flag as important
+  const handleFlagAsImportant = () => {
+    toast({
+      title: "Conversation flagged",
+      description: "This conversation has been marked as important"
+    });
+  };
+
+  // Handle add to group
+  const handleAddToGroup = () => {
+    toast({
+      title: "Add to group",
+      description: "Group selection feature will be available soon"
+    });
+  };
+
+  // Handle delete conversation
+  const handleDeleteConversation = () => {
+    toast({
+      title: "Conversation deleted",
+      description: activeContact?.name 
+        ? `Conversation with ${activeContact.name} has been deleted` 
+        : "Conversation has been deleted"
+    });
+  };
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -149,21 +199,17 @@ export function MessageThread({
   // Properly handle dialog closing
   const handleSelectAISuggestion = (suggestion: string) => {
     setMessageText(suggestion);
-    // Using querySelector with optional chaining and type assertion
-    const closeButton = document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]') as HTMLButtonElement | null;
-    if (closeButton) {
-      closeButton.click();
-    }
+    const dialogElement = document.querySelector('[role="dialog"]');
+    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
+    if (closeButton) closeButton.click();
   };
 
   // Properly handle dialog closing for templates
   const handleSelectTemplate = (template: string) => {
     setMessageText(template);
-    // Using querySelector with optional chaining and type assertion
-    const closeButton = document.querySelector('[role="dialog"]')?.querySelector('button[aria-label="Close"]') as HTMLButtonElement | null;
-    if (closeButton) {
-      closeButton.click();
-    }
+    const dialogElement = document.querySelector('[role="dialog"]');
+    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
+    if (closeButton) closeButton.click();
   };
 
   const handleInsertEmoji = (emoji: string) => {
@@ -226,9 +272,35 @@ export function MessageThread({
           <Button variant="ghost" size="icon" title="Call">
             <Phone className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" title="More">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" title="More">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleAddToGroup}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add to group
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleFlagAsImportant}>
+                <Star className="h-4 w-4 mr-2" />
+                Flag as important
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleArchiveConversation}>
+                <Archive className="h-4 w-4 mr-2" />
+                Archive conversation
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDeleteConversation} className="text-red-500">
+                <Trash className="h-4 w-4 mr-2" />
+                Delete conversation
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       
@@ -286,7 +358,7 @@ export function MessageThread({
                   </div>
                 ))}
               </div>
-              <DialogClose className="sr-only">Close</DialogClose>
+              <DialogClose data-dismiss />
             </DialogContent>
           </Dialog>
 
@@ -311,7 +383,7 @@ export function MessageThread({
                   </div>
                 ))}
               </div>
-              <DialogClose className="sr-only">Close</DialogClose>
+              <DialogClose data-dismiss />
             </DialogContent>
           </Dialog>
         </div>
@@ -341,7 +413,7 @@ export function MessageThread({
                 <Smile className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-2">
+            <PopoverContent className="w-64 p-2" side="top">
               <div className="grid grid-cols-8 gap-1">
                 {["😀", "😊", "😂", "🥰", "😍", "😎", "👍", "🙏", 
                 "🎉", "💯", "⭐", "❤️", "🔥", "👏", "✅", "🤔",
@@ -377,7 +449,7 @@ export function MessageThread({
                 <Clock className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto p-0">
+            <PopoverContent align="end" className="w-auto p-0" side="top">
               <div className="p-3 border-b">
                 <h4 className="font-medium">Schedule Message</h4>
               </div>

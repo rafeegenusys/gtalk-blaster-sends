@@ -27,7 +27,7 @@ import { DateRange } from "react-day-picker";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 
-type FilterType = "all" | "unread" | "unresponded";
+type FilterType = "all" | "unread" | "unresponded" | "archived";
 type DateRangeFilter = DateRange | undefined;
 
 export function MessageFilters({ 
@@ -67,23 +67,23 @@ export function MessageFilters({
   };
 
   return (
-    <div className="p-3 border-b">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex gap-1">
+    <div className="p-2 sm:p-3 border-b">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 mb-2">
+        <div className="flex flex-wrap gap-1">
           <Button
             variant={activeFilter === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => handleFilterClick("all")}
-            className="text-xs h-8"
+            className="text-xs h-8 flex-grow sm:flex-grow-0"
           >
             <MessagesSquare className="mr-1 h-3 w-3" />
-            All Messages
+            All
           </Button>
           <Button
             variant={activeFilter === "unread" ? "default" : "outline"}
             size="sm"
             onClick={() => handleFilterClick("unread")}
-            className="text-xs h-8"
+            className="text-xs h-8 flex-grow sm:flex-grow-0"
           >
             Unread
           </Button>
@@ -91,13 +91,21 @@ export function MessageFilters({
             variant={activeFilter === "unresponded" ? "default" : "outline"}
             size="sm"
             onClick={() => handleFilterClick("unresponded")}
-            className="text-xs h-8"
+            className="text-xs h-8 flex-grow sm:flex-grow-0"
           >
             Unresponded
           </Button>
+          <Button
+            variant={activeFilter === "archived" ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleFilterClick("archived")}
+            className="text-xs h-8 flex-grow sm:flex-grow-0"
+          >
+            Archived
+          </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="text-xs h-8">
@@ -125,7 +133,7 @@ export function MessageFilters({
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="text-xs h-8">
                 <Calendar className="mr-1 h-3 w-3" />
-                Date Range
+                Date
                 <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </PopoverTrigger>
@@ -136,11 +144,11 @@ export function MessageFilters({
                 defaultMonth={new Date()}
                 selected={dateRange}
                 onSelect={handleDateRangeChange}
-                numberOfMonths={2}
+                numberOfMonths={1}
               />
               <div className="p-3 border-t">
                 <div className="flex justify-between items-center">
-                  <div className="text-sm">
+                  <div className="text-xs sm:text-sm">
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <>

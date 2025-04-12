@@ -15,8 +15,7 @@ import {
   MessageSquare,
   PenSquare, 
   Plus, 
-  User,
-  UserIcon
+  User as UserIcon
 } from "lucide-react";
 
 const Messaging = () => {
@@ -102,16 +101,14 @@ const Messaging = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [mobileView, setMobileView] = useState<'contacts' | 'conversation' | 'details'>('contacts');
+  // Use a ref to track if we've already shown the welcome toast
   const welcomeToastShownRef = useRef(false);
+  const initialRenderRef = useRef(true);
 
-  // Replace welcome toast handler to prevent duplicate toasts
+  // Only show welcome toast on first render, not on subsequent renders or focus events
   useEffect(() => {
-    // Only show the welcome toast if it hasn't been shown yet in this session
-    if (!welcomeToastShownRef.current) {
-      welcomeToastShownRef.current = true;
-    }
-    
-    // No need for cleanup as we're using the ref to track state
+    // First render has already happened after this effect runs
+    initialRenderRef.current = false;
   }, []);
 
   const handleSendMessage = (text: string, scheduledTime?: Date) => {
@@ -230,12 +227,22 @@ const Messaging = () => {
     setSelectedFilter(filter);
   };
 
+  const handleNewMessageClick = () => {
+    setShowNewMessage(true);
+    if (isMobile) {
+      setMobileView('conversation');
+    }
+  };
+
   const renderMobileView = () => {
     if (showNewMessage) {
       return (
         <NewMessage 
           onSend={handleNewMessageSend} 
-          onBack={() => setShowNewMessage(false)} 
+          onBack={() => {
+            setShowNewMessage(false);
+            setMobileView('contacts');
+          }}
         />
       );
     }
@@ -250,7 +257,7 @@ const Messaging = () => {
                 <NotificationBell />
                 <Button 
                   size="icon" 
-                  onClick={() => setShowNewMessage(true)}
+                  onClick={handleNewMessageClick}
                 >
                   <PenSquare className="h-4 w-4" />
                 </Button>
@@ -318,7 +325,7 @@ const Messaging = () => {
                 <NotificationBell />
                 <Button 
                   size="sm" 
-                  onClick={() => setShowNewMessage(true)}
+                  onClick={handleNewMessageClick}
                   className="gap-1"
                 >
                   <Plus className="h-4 w-4" /> New
@@ -370,7 +377,7 @@ const Messaging = () => {
               <div className="flex-1 flex items-center justify-center text-center p-8 h-full">
                 <div>
                   <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                    <User className="h-8 w-8 text-muted-foreground" />
+                    <UserIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-medium mb-2">No contact selected</h3>
                   <p className="text-muted-foreground">

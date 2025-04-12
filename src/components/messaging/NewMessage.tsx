@@ -25,6 +25,10 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
     onSend(phoneNumber, text);
   };
 
+  const handleBackToPhoneInput = () => {
+    setShowMessageThread(false);
+  };
+
   // Create a temp contact from the phone number
   const tempContact = {
     id: "new",
@@ -37,7 +41,7 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
   return (
     <div className="h-full flex flex-col">
       {!showMessageThread ? (
-        <Card className="w-full max-w-3xl mx-auto mt-8">
+        <Card className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto mt-4 sm:mt-8">
           <CardHeader>
             <div className="flex items-center">
               <Button variant="ghost" onClick={onBack} className="mr-2 -ml-2">
@@ -76,7 +80,7 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
             activeContact={tempContact}
             messages={[]}
             onSendMessage={handleSendMessage}
-            onBackClick={() => setShowMessageThread(false)}
+            onBackClick={handleBackToPhoneInput}
             showBackButton={true}
           />
         </div>

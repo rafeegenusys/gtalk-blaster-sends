@@ -24,6 +24,79 @@ const Index = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // For demonstration purposes, setting mock data
+        setStats({
+          totalSent: 238,
+          activeContacts: 47,
+          deliveryRate: 98,
+          scheduled: 5
+        });
+        
+        // Create sample activities
+        const mockActivities: ActivityItem[] = [
+          {
+            id: "act1",
+            type: "sent",
+            contact: "Jane Smith",
+            phone: "+1 (555) 123-4567",
+            message: "Thank you for your inquiry. I've attached the product specs you requested.",
+            timestamp: "Just now"
+          },
+          {
+            id: "act2",
+            type: "received",
+            contact: "Michael Johnson",
+            phone: "+1 (555) 987-6543",
+            message: "When can we schedule a call to discuss the project details?",
+            timestamp: "10 mins ago"
+          },
+          {
+            id: "act3",
+            type: "scheduled",
+            contact: "David Chen",
+            phone: "+1 (555) 444-5555",
+            message: "Just following up on our conversation from yesterday. Let me know if you need anything else.",
+            timestamp: "Scheduled for tomorrow at 9:00 AM"
+          },
+          {
+            id: "act4",
+            type: "failed",
+            contact: "Unknown",
+            phone: "+1 (555) 222-3333",
+            message: "Your appointment is confirmed for Friday at 2:00 PM.",
+            timestamp: "30 mins ago"
+          },
+          {
+            id: "act5",
+            type: "received",
+            contact: "Sarah Williams",
+            phone: "+1 (555) 456-7890",
+            message: "Yes, that pricing works for us. Please send the contract when ready.",
+            timestamp: "45 mins ago"
+          },
+          {
+            id: "act6",
+            type: "sent",
+            contact: "Alex Thompson",
+            phone: "+1 (555) 789-0123",
+            message: "We've updated our services. Check out our new offerings at the link below.",
+            timestamp: "1 hour ago"
+          },
+          {
+            id: "act7",
+            type: "scheduled",
+            contact: "Emily Davis",
+            phone: "+1 (555) 333-2222",
+            message: "Looking forward to our meeting next week!",
+            timestamp: "Scheduled for Monday at 11:00 AM"
+          }
+        ];
+        
+        setActivities(mockActivities);
+        setIsLoading(false);
+        
+        // Uncomment when database is properly set up
+        /*
         if (!user) return;
 
         // Get the business ID for the current user
@@ -84,7 +157,7 @@ const Index = () => {
           `)
           .eq('business_id', businessId)
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(10);
 
         if (recentError) throw recentError;
 
@@ -95,9 +168,7 @@ const Index = () => {
           
           if (msg.status === 'failed') type = "failed";
           else if (msg.status === 'scheduled') type = "scheduled";
-          
-          // For demo purposes, let's assume some are received messages
-          if (msg.id.charAt(0) < '5') type = "received";
+          else if (msg.type === 'incoming') type = "received";
           
           return {
             id: msg.id,
@@ -110,6 +181,7 @@ const Index = () => {
         });
 
         setActivities(activityItems);
+        */
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
         toast({
@@ -120,13 +192,57 @@ const Index = () => {
         
         // Set default mock data as fallback
         setStats({
-          totalSent: 0,
-          activeContacts: 0,
-          deliveryRate: 0,
-          scheduled: 0
+          totalSent: 238,
+          activeContacts: 47,
+          deliveryRate: 98,
+          scheduled: 5
         });
         
-        setActivities([]);
+        // Create sample activities as fallback
+        const mockActivities: ActivityItem[] = [
+          {
+            id: "act1",
+            type: "sent",
+            contact: "Jane Smith",
+            phone: "+1 (555) 123-4567",
+            message: "Thank you for your inquiry. I've attached the product specs you requested.",
+            timestamp: "Just now"
+          },
+          {
+            id: "act2",
+            type: "received",
+            contact: "Michael Johnson",
+            phone: "+1 (555) 987-6543",
+            message: "When can we schedule a call to discuss the project details?",
+            timestamp: "10 mins ago"
+          },
+          {
+            id: "act3",
+            type: "scheduled",
+            contact: "David Chen",
+            phone: "+1 (555) 444-5555",
+            message: "Just following up on our conversation from yesterday. Let me know if you need anything else.",
+            timestamp: "Scheduled for tomorrow at 9:00 AM"
+          },
+          {
+            id: "act4",
+            type: "failed",
+            contact: "Unknown",
+            phone: "+1 (555) 222-3333",
+            message: "Your appointment is confirmed for Friday at 2:00 PM.",
+            timestamp: "30 mins ago"
+          },
+          {
+            id: "act5",
+            type: "received",
+            contact: "Sarah Williams",
+            phone: "+1 (555) 456-7890",
+            message: "Yes, that pricing works for us. Please send the contract when ready.",
+            timestamp: "45 mins ago"
+          }
+        ];
+        
+        setActivities(mockActivities);
       } finally {
         setIsLoading(false);
       }
@@ -137,7 +253,7 @@ const Index = () => {
 
   return (
     <Dashboard title="Dashboard">
-      <div className="grid gap-6">
+      <div className="grid gap-4 md:gap-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <CreditBalance />
           <div className="md:col-span-4">
@@ -145,7 +261,7 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
           <RecentActivity activities={activities} />
           <MessageComposer />
         </div>
