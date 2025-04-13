@@ -1,10 +1,9 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
-import { Badge } from "@/components/ui/badge"; // Added missing import for Badge
+import { Badge } from "@/components/ui/badge";
 import { Contact } from "./ContactList";
 import {
   Archive,
@@ -12,17 +11,21 @@ import {
   ChevronLeft,
   Clock,
   Copy,
+  Filter,
   Flag,
+  FolderOpen,
   Image,
   Info,
   MessageSquare,
   MoreVertical,
   Paperclip,
   Phone,
+  Search,
   Send,
   Smile,
   Sparkles,
   Star,
+  Tag,
   Trash,
   UserPlus
 } from "lucide-react";
@@ -48,6 +51,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Tabs,
+  TabsContent,
+  TabsContent as TabsPages,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -59,6 +69,7 @@ import {
 import { AIAssistant } from "./AIAssistant";
 import { CancelConditions } from "@/components/scheduler/CancelConditions";
 import { Template } from "@/components/templates/TemplateGrid";
+import { TemplateCard } from "@/components/templates/TemplateCard";
 
 export type Message = {
   id: string;
@@ -93,6 +104,10 @@ export function MessageThread({
   const [scheduledTime, setScheduledTime] = useState<string>("08:00");
   const [timezone, setTimezone] = useState("America/New_York");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const charCount = messageText.length;
@@ -153,6 +168,45 @@ export function MessageThread({
     }
   }, [messages]);
 
+  useEffect(() => {
+    import("@/components/templates/TemplateGrid").then(module => {
+      if (module && module.sampleTemplates) {
+        setTemplates(module.sampleTemplates);
+      }
+    }).catch(err => {
+      console.error("Failed to load templates:", err);
+    });
+  }, []);
+
+  // Get unique categories from templates
+  const categories = templates.length > 0 
+    ? ["All", ...Array.from(new Set(templates.map(t => t.category)))] 
+    : ["All"];
+  
+  // Get unique tags from templates
+  const tags = templates.length > 0
+    ? Array.from(new Set(templates.flatMap(t => t.tags)))
+    : [];
+  
+  // Filter templates based on search query, active category, and tag
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = 
+      searchQuery === "" || 
+      template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesCategory = 
+      activeCategory === "all" || 
+      template.category.toLowerCase() === activeCategory.toLowerCase();
+    
+    const matchesTag = 
+      !activeTag ||
+      template.tags.includes(activeTag);
+    
+    return matchesSearch && matchesCategory && matchesTag;
+  });
+  
   const handleSelectTemplate = (template: Template) => {
     let processedContent = template.content;
     
@@ -164,9 +218,11 @@ export function MessageThread({
     processedContent = processedContent.replace(/{{time}}/g, new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
     
     setMessageText(processedContent);
-    const dialogElement = document.querySelector('[role="dialog"]');
-    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
-    if (closeButton) closeButton.click();
+    setShowTemplates(false);
+  };
+
+  const handleSelectTag = (tag: string) => {
+    setActiveTag(prevTag => prevTag === tag ? null : tag);
   };
   
   const handleSelectAISuggestion = (suggestion: string) => {
@@ -235,16 +291,6 @@ export function MessageThread({
     }
   }, [initialMessage]);
 
-  useEffect(() => {
-    import("@/components/templates/TemplateGrid").then(module => {
-      if (module && module.sampleTemplates) {
-        setTemplates(module.sampleTemplates);
-      }
-    }).catch(err => {
-      console.error("Failed to load templates:", err);
-    });
-  }, []);
-  
   const renderMainContent = () => {
     return (
       <>
@@ -396,41 +442,84 @@ export function MessageThread({
           AI Assist
         </Button>
         
-        <Dialog>
+        <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="text-xs h-8">
+              <MessageSquare className="mr-1 h-3 w-3" />
               Templates
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[680px] max-h-[80vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>Message Templates</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="h-[400px] mt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {templates.map((template) => (
-                  <div 
-                    key={template.id} 
-                    className="cursor-pointer"
-                    onClick={() => handleSelectTemplate(template)}
+            
+            {/* Search and Filters */}
+            <div className="flex items-center gap-2 my-2 px-1">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8"
+              />
+            </div>
+            
+            <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
+              <TabsList className="mb-3 bg-muted/50 overflow-x-auto flex w-full gap-1">
+                {categories.map((category) => (
+                  <TabsTrigger 
+                    key={category.toLowerCase()} 
+                    value={category.toLowerCase()}
+                    className="text-xs px-3 py-1"
                   >
-                    <div className="p-3 border rounded-lg hover:border-primary transition-colors">
-                      <h3 className="font-medium mb-1">{template.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {template.content}
-                      </p>
-                      <div className="flex gap-1 mt-2">
-                        {template.tags.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="outline" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                    {category}
+                  </TabsTrigger>
                 ))}
+              </TabsList>
+              
+              {/* Tags filter */}
+              <div className="mb-3 px-1">
+                <div className="flex items-center gap-1 mb-2 text-xs text-muted-foreground">
+                  <Tag className="h-3 w-3" />
+                  <span>Filter by tags:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <Badge 
+                      key={tag} 
+                      variant={activeTag === tag ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => handleSelectTag(tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                  {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags available</span>}
+                </div>
               </div>
-            </ScrollArea>
+            
+              <ScrollArea className="h-[400px] mt-2 pr-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {filteredTemplates.map((template) => (
+                    <div 
+                      key={template.id} 
+                      className="cursor-pointer"
+                      onClick={() => handleSelectTemplate(template)}
+                    >
+                      <TemplateCard template={template} isCompact={true} />
+                    </div>
+                  ))}
+                  
+                  {filteredTemplates.length === 0 && (
+                    <div className="col-span-full text-center py-8">
+                      <p className="text-muted-foreground">No templates found matching your criteria.</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </Tabs>
+            
             <DialogClose data-dismiss />
           </DialogContent>
         </Dialog>

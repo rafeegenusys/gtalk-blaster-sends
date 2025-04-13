@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, Send, MessageSquare, Search } from "lucide-react";
+import { ChevronLeft, Send, MessageSquare, Search, Tag, FolderOpen } from "lucide-react";
 import { MessageThread } from "./MessageThread";
 import { 
   Dialog,
@@ -33,6 +33,7 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   
   // Import templates from the same source as the Templates page
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -55,7 +56,12 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
     ? ["All", ...Array.from(new Set(templates.map(t => t.category)))] 
     : ["All"];
   
-  // Filter templates based on search query and active category
+  // Get unique tags from templates
+  const tags = templates.length > 0
+    ? Array.from(new Set(templates.flatMap(t => t.tags)))
+    : [];
+  
+  // Filter templates based on search query, active category, and tag
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = 
       searchQuery === "" || 
@@ -67,7 +73,11 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
       activeCategory === "all" || 
       template.category.toLowerCase() === activeCategory.toLowerCase();
     
-    return matchesSearch && matchesCategory;
+    const matchesTag = 
+      !activeTag ||
+      template.tags.includes(activeTag);
+    
+    return matchesSearch && matchesCategory && matchesTag;
   });
   
   const handleContinue = () => {
@@ -87,6 +97,10 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
   const handleSelectTemplate = (template: Template) => {
     setSelectedTemplate(template);
     setIsTemplatesOpen(false);
+  };
+
+  const handleSelectTag = (tag: string) => {
+    setActiveTag(prevTag => prevTag === tag ? null : tag);
   };
 
   // Create a temp contact from the phone number
@@ -156,7 +170,7 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
                     </div>
                     
                     <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
-                      <TabsList className="mb-3 bg-muted/80 overflow-x-auto flex w-full gap-1">
+                      <TabsList className="mb-3 bg-muted/50 overflow-x-auto flex w-full gap-1">
                         {categories.map((category) => (
                           <TabsTrigger 
                             key={category.toLowerCase()} 
@@ -167,6 +181,27 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
                           </TabsTrigger>
                         ))}
                       </TabsList>
+                      
+                      {/* Tags filter */}
+                      <div className="mb-3 px-1">
+                        <div className="flex items-center gap-1 mb-2 text-xs text-muted-foreground">
+                          <Tag className="h-3 w-3" />
+                          <span>Filter by tags:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map(tag => (
+                            <Badge 
+                              key={tag} 
+                              variant={activeTag === tag ? "default" : "outline"}
+                              className="cursor-pointer"
+                              onClick={() => handleSelectTag(tag)}
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                          {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags available</span>}
+                        </div>
+                      </div>
                       
                       <ScrollArea className="flex-1 pr-4 h-[400px]">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -182,7 +217,7 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
                           
                           {filteredTemplates.length === 0 && (
                             <div className="col-span-full text-center py-8">
-                              <p className="text-muted-foreground">No templates found matching your search.</p>
+                              <p className="text-muted-foreground">No templates found matching your criteria.</p>
                             </div>
                           )}
                         </div>

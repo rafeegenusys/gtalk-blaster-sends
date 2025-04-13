@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,23 @@ const Messaging = () => {
 
   useEffect(() => {
     initialRenderRef.current = false;
+  }, []);
+
+  // Handle the selected activity from dashboard
+  useEffect(() => {
+    const selectedActivityJson = sessionStorage.getItem('selectedActivity');
+    
+    if (selectedActivityJson) {
+      // Clear the session storage item
+      sessionStorage.removeItem('selectedActivity');
+      
+      try {
+        const activity = JSON.parse(selectedActivityJson) as ActivityItem;
+        handleActivityClick(activity);
+      } catch (error) {
+        console.error('Error parsing selected activity:', error);
+      }
+    }
   }, []);
 
   const handleTogglePin = (contactId: string, messageId: string) => {
@@ -356,6 +374,18 @@ const Messaging = () => {
       if (isMobile) {
         setMobileView('conversation');
       }
+      
+      // Add this message to the messages state
+      setMessages(prev => ({
+        ...prev,
+        [newContact.id]: [{
+          id: `m-new-${Date.now()}`,
+          content: activity.message,
+          timestamp: activity.timestamp,
+          type: activity.type === 'received' ? 'incoming' : 'outgoing',
+          status: activity.type === 'scheduled' ? 'scheduled' : undefined
+        }]
+      }));
     }
   };
   

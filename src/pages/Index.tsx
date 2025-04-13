@@ -8,6 +8,7 @@ import { MessageComposer } from "@/components/messaging/MessageComposer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const [stats, setStats] = useState<StatsData>({
@@ -20,6 +21,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -251,6 +253,13 @@ const Index = () => {
     fetchDashboardData();
   }, [user, toast]);
 
+  const handleActivityClick = (activity: ActivityItem) => {
+    // Navigate to messaging and store the activity info in sessionStorage
+    // to be retrieved by the Messaging page
+    sessionStorage.setItem('selectedActivity', JSON.stringify(activity));
+    navigate('/messaging');
+  };
+
   return (
     <Dashboard title="Dashboard">
       <div className="grid gap-4 md:gap-6">
@@ -262,7 +271,10 @@ const Index = () => {
         </div>
         
         <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-          <RecentActivity activities={activities} />
+          <RecentActivity 
+            activities={activities} 
+            onActivityClick={handleActivityClick}
+          />
           <MessageComposer />
         </div>
       </div>
