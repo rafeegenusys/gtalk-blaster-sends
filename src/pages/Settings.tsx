@@ -34,7 +34,7 @@ interface BusinessSettings {
 const Settings = () => {
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [preferredModel, setPreferredModel] = useState("");
-  const [smsProvider, setSmsProvider] = useState("");
+  const [smsProvider, setSmsProvider] = useState("twilio");
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioAuthToken, setTwilioAuthToken] = useState("");
   const [openphoneApiKey, setOpenphoneApiKey] = useState("");
@@ -43,6 +43,7 @@ const Settings = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [primaryColor, setPrimaryColor] = useState("#8B5CF6");
+  const [businessId, setBusinessId] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -57,26 +58,82 @@ const Settings = () => {
     { name: "Orange", value: "#F97316" }
   ];
   
-  // Fetch existing settings
-  const fetchSettings = async () => {
+  // Fetch the business ID or create one if it doesn't exist
+  const fetchOrCreateBusinessId = async () => {
     if (!user) return;
     
     try {
-      const { data: profileData } = await supabase
+      // First check if the user has a profile with a business_id
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
         .single();
       
-      if (!profileData?.business_id) return;
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
       
+      // If profile exists but no business ID, or if profile doesn't exist
+      if (!profileData?.business_id) {
+        // Create a new business
+        const { data: newBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .insert([
+            { name: 'My Business', credits_balance: 500 }
+          ])
+          .select()
+          .single();
+          
+        if (businessError) throw businessError;
+        
+        // Create or update the user profile with the new business ID
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .upsert([
+            { 
+              id: user.id, 
+              business_id: newBusiness.id,
+              updated_at: new Date().toISOString()
+            }
+          ]);
+          
+        if (updateProfileError) throw updateProfileError;
+        
+        setBusinessId(newBusiness.id);
+        return newBusiness.id;
+      } else {
+        // Business ID already exists
+        setBusinessId(profileData.business_id);
+        return profileData.business_id;
+      }
+    } catch (error: any) {
+      console.error('Error fetching or creating business ID:', error);
+      toast({
+        title: "Error",
+        description: "Failed to setup your account. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+  
+  // Fetch existing settings
+  const fetchSettings = async () => {
+    if (!user) return;
+    
+    try {
+      const businessId = await fetchOrCreateBusinessId();
+      if (!businessId) return;
+      
+      // Get settings for the business
       const { data, error } = await supabase
         .from('business_settings')
         .select('*')
-        .eq('business_id', profileData.business_id)
+        .eq('business_id', businessId)
         .single();
       
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
       
       if (data) {
         // Cast data to BusinessSettings type to safely access properties
@@ -110,18 +167,15 @@ const Settings = () => {
     setIsLoading(true);
     
     try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('business_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (!profileData?.business_id) {
-        throw new Error("Business ID not found");
+      if (!businessId) {
+        const newBusinessId = await fetchOrCreateBusinessId();
+        if (!newBusinessId) {
+          throw new Error("Could not create business account");
+        }
       }
       
       const updateData: BusinessSettings = {
-        business_id: profileData.business_id
+        business_id: businessId!
       };
       
       // Only include fields that are relevant to the active tab

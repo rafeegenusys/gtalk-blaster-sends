@@ -95,11 +95,21 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  
+  /* Fix for dark mode text contrast issues */
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    @apply text-gray-400;
+  }
+  
+  .dark .text-muted-foreground {
+    @apply text-gray-300/80;
+  }
 }
 
 @layer components {
   .gtalk-card {
-    @apply bg-white rounded-lg shadow-sm border border-border p-4;
+    @apply bg-white dark:bg-card rounded-lg shadow-sm border border-border p-4;
   }
   
   .gtalk-button-primary {
@@ -108,5 +118,22 @@
   
   .gtalk-button-accent {
     @apply bg-gtalk-accent text-white rounded-md px-4 py-2 hover:bg-opacity-90 transition-colors;
+  }
+  
+  /* Additional dark mode style fixes */
+  .dark .bg-white {
+    @apply bg-card;
+  }
+  
+  .dark .bg-muted/50 {
+    @apply bg-muted/70;
+  }
+  
+  .dark .border-muted {
+    @apply border-gray-700;
+  }
+  
+  .dark .bg-gray-200 {
+    @apply bg-gray-700;
   }
 }

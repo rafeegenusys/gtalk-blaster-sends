@@ -20,45 +20,57 @@ export function CreditBalance() {
           return;
         }
 
-        // For demo purposes, using a default credit value
-        // In a production environment, this would be fetched from the database
-        setCredits(500); // Default value
-        setIsLoading(false);
+        setIsLoading(true);
         
-        // Uncomment below code when database is properly set up
-        /*
-        // Get the business ID for the current user
+        // First check if the user has a profile with a business_id
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('business_id')
           .eq('id', user.id)
           .single();
-
-        if (profileError) throw profileError;
         
-        // Handle case where no profile is found or business_id is missing
-        if (!profileData || !profileData.business_id) {
-          setCredits(500); // Default value
-          setIsLoading(false);
-          return;
+        // If there's an error or no business ID yet
+        if (profileError || !profileData?.business_id) {
+          // Create a new business
+          const { data: newBusiness, error: businessError } = await supabase
+            .from('businesses')
+            .insert([
+              { name: 'My Business', credits_balance: 500 }
+            ])
+            .select()
+            .single();
+            
+          if (businessError) throw businessError;
+          
+          // Create or update the user profile with the new business ID
+          const { error: updateProfileError } = await supabase
+            .from('profiles')
+            .upsert([
+              { 
+                id: user.id, 
+                business_id: newBusiness.id,
+                updated_at: new Date().toISOString()
+              }
+            ]);
+            
+          if (updateProfileError) throw updateProfileError;
+          
+          setCredits(500); // Default value for new business
+        } else {
+          // Business ID exists, get the credits
+          const { data: businessData, error: businessError } = await supabase
+            .from('businesses')
+            .select('credits_balance')
+            .eq('id', profileData.business_id)
+            .single();
+
+          if (businessError) throw businessError;
+          
+          setCredits(businessData?.credits_balance || 500);
         }
-
-        const businessId = profileData.business_id;
-
-        // Get the credits for the business
-        const { data: businessData, error: businessError } = await supabase
-          .from('businesses')
-          .select('credits_balance')
-          .eq('id', businessId)
-          .single();
-
-        if (businessError) throw businessError;
-        
-        setCredits(businessData?.credits_balance || 500);
-        */
       } catch (error: any) {
         console.error('Error fetching credit balance:', error);
-        // Still set a default value to prevent UI from showing an error state
+        // Set a default value to prevent UI from showing an error state
         setCredits(500); // Default value
       } finally {
         setIsLoading(false);

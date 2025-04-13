@@ -18,6 +18,7 @@ const CREDIT_PACKAGES = [
 const CreditsPage = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -28,24 +29,69 @@ const CreditsPage = () => {
     }
   }, [user]);
 
-  const fetchCurrentBalance = async () => {
+  // Fetch or create business ID
+  const fetchOrCreateBusinessId = async () => {
     try {
-      // Get the user's business ID
+      // First check if the user has a profile with a business_id
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('business_id')
         .eq('id', user?.id)
         .single();
-
-      if (profileError || !profileData?.business_id) {
-        throw new Error("Could not find associated business");
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
       }
+      
+      // If profile exists but no business ID, or if profile doesn't exist
+      if (!profileData?.business_id) {
+        // Create a new business
+        const { data: newBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .insert([
+            { name: 'My Business', credits_balance: 500 }
+          ])
+          .select()
+          .single();
+          
+        if (businessError) throw businessError;
+        
+        // Create or update the user profile with the new business ID
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .upsert([
+            { 
+              id: user?.id, 
+              business_id: newBusiness.id,
+              updated_at: new Date().toISOString()
+            }
+          ]);
+          
+        if (updateProfileError) throw updateProfileError;
+        
+        // Return the new business ID
+        return newBusiness.id;
+      } else {
+        // Business ID already exists
+        return profileData.business_id;
+      }
+    } catch (error) {
+      console.error("Error fetching or creating business ID:", error);
+      throw new Error("Could not set up your account");
+    }
+  };
 
+  const fetchCurrentBalance = async () => {
+    setIsLoading(true);
+    try {
+      // Get or create the business ID
+      const businessId = await fetchOrCreateBusinessId();
+      
       // Get the current credits balance
       const { data: businessData, error: getBusinessError } = await supabase
         .from('businesses')
         .select('credits_balance')
-        .eq('id', profileData.business_id)
+        .eq('id', businessId)
         .single();
         
       if (getBusinessError) throw getBusinessError;
@@ -58,6 +104,10 @@ const CreditsPage = () => {
         description: "Could not fetch current balance",
         variant: "destructive"
       });
+      // Set a default balance for better UX
+      setCurrentBalance(500);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -71,23 +121,16 @@ const CreditsPage = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
-      // Get the user's business ID
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('business_id')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError || !profileData?.business_id) {
-        throw new Error("Could not find associated business");
-      }
-
+      // Get or create the business ID
+      const businessId = await fetchOrCreateBusinessId();
+      
       // First get the current credits balance
       const { data: businessData, error: getBusinessError } = await supabase
         .from('businesses')
         .select('credits_balance')
-        .eq('id', profileData.business_id)
+        .eq('id', businessId)
         .single();
         
       if (getBusinessError) throw getBusinessError;
@@ -102,7 +145,7 @@ const CreditsPage = () => {
           credits_balance: newBalance,
           updated_at: new Date().toISOString()
         })
-        .eq('id', profileData.business_id);
+        .eq('id', businessId);
 
       if (updateError) throw updateError;
 
@@ -121,6 +164,8 @@ const CreditsPage = () => {
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -145,6 +190,12 @@ const CreditsPage = () => {
           <p className="text-lg">Current Balance: <span className="font-bold">{currentBalance} Credits</span></p>
         </div>
       )}
+
+      {isLoading && (
+        <div className="mb-6 p-4 bg-muted/50 rounded-lg flex justify-center">
+          <p>Loading...</p>
+        </div>
+      )}
       
       <div className="grid md:grid-cols-3 gap-6">
         {CREDIT_PACKAGES.map((pkg) => (
@@ -159,6 +210,7 @@ const CreditsPage = () => {
                 <Button 
                   onClick={() => handleRecharge(pkg.amount)}
                   className="w-full"
+                  disabled={isLoading}
                 >
                   <RefreshCcw className="mr-2 h-4 w-4" /> Recharge
                 </Button>
@@ -192,6 +244,7 @@ const CreditsPage = () => {
                   });
                 }
               }}
+              disabled={isLoading}
             >
               Recharge
             </Button>
