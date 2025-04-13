@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Clock, ScrollText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export interface ActivityItem {
   id: string;
@@ -14,9 +15,10 @@ export interface ActivityItem {
 
 interface RecentActivityProps {
   activities: ActivityItem[];
+  onActivityClick?: (activity: ActivityItem) => void;
 }
 
-export function RecentActivity({ activities }: RecentActivityProps) {
+export function RecentActivity({ activities, onActivityClick }: RecentActivityProps) {
   return (
     <Card className="col-span-1 row-span-3">
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -26,11 +28,16 @@ export function RecentActivity({ activities }: RecentActivityProps) {
       <CardContent>
         <div className="space-y-4 max-h-[500px] overflow-auto pr-2">
           {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start space-x-4">
+            <Button
+              key={activity.id}
+              variant="ghost"
+              className="flex items-start space-x-4 w-full h-auto p-2 justify-start hover:bg-muted/50"
+              onClick={() => onActivityClick && onActivityClick(activity)}
+            >
               <div className="mt-1">
                 <StatusIcon type={activity.type} />
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1 text-left">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium leading-none">{activity.contact}</p>
                   <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
@@ -38,7 +45,7 @@ export function RecentActivity({ activities }: RecentActivityProps) {
                 <p className="text-xs text-muted-foreground">{activity.phone}</p>
                 <p className="text-sm line-clamp-2">{activity.message}</p>
               </div>
-            </div>
+            </Button>
           ))}
           
           {activities.length === 0 && (
@@ -63,7 +70,7 @@ function StatusIcon({ type }: { type: ActivityItem["type"] }) {
     case "received":
       return (
         <div className="p-1 rounded-full bg-blue-100">
-          <Check className="w-3 h-3 text-gtalk-primary" />
+          <Check className="w-3 h-3 text-primary" />
         </div>
       );
     case "scheduled":
@@ -75,7 +82,7 @@ function StatusIcon({ type }: { type: ActivityItem["type"] }) {
     case "failed":
       return (
         <div className="p-1 rounded-full bg-red-100">
-          <X className="w-3 h-3 text-gtalk-accent" />
+          <X className="w-3 h-3 text-accent" />
         </div>
       );
   }

@@ -54,6 +54,9 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { AIAssistant } from "./AIAssistant";
+import { CancelConditions } from "@/components/scheduler/CancelConditions";
+import { Template } from "@/components/templates/TemplateGrid";
 
 export type Message = {
   id: string;
@@ -62,15 +65,16 @@ export type Message = {
   type: "incoming" | "outgoing";
   status?: "sent" | "delivered" | "read" | "failed" | "scheduled";
   scheduledTime?: string;
+  cancelIfResponse?: boolean;
 };
 
 interface MessageThreadProps {
   activeContact: Contact | null;
   messages: Message[];
-  onSendMessage: (text: string, scheduledTime?: Date) => void;
+  onSendMessage: (text: string, scheduledTime?: Date, cancelIfResponse?: boolean) => void;
   onBackClick?: () => void;
   showBackButton?: boolean;
-  initialMessage?: string; // Add initialMessage prop
+  initialMessage?: string;
 }
 
 export function MessageThread({
@@ -79,9 +83,9 @@ export function MessageThread({
   onSendMessage,
   onBackClick,
   showBackButton = false,
-  initialMessage = "", // Set default value
+  initialMessage = "",
 }: MessageThreadProps) {
-  const [messageText, setMessageText] = useState(initialMessage); // Initialize with initialMessage
+  const [messageText, setMessageText] = useState(initialMessage);
   const [showScheduler, setShowScheduler] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState<string>("08:00");
@@ -89,12 +93,12 @@ export function MessageThread({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
-  // Calculate character count and SMS segments
   const charCount = messageText.length;
   const smsSegments = Math.ceil(charCount / 160) || 1;
+  const [cancelIfResponse, setCancelIfResponse] = useState<boolean>(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [showAIAssistant, setShowAIAssistant] = useState<boolean>(false);
 
-  // AI suggestion templates
   const aiSuggestions = [
     "Thanks for reaching out! I'll get back to you shortly.",
     "I appreciate your message. Let me check and respond as soon as possible.",
@@ -102,7 +106,6 @@ export function MessageThread({
     "Got it! I'll take care of this right away.",
   ];
 
-  // Message templates
   const messageTemplates = [
     "Hi there! How can I help you today?",
     "Thank you for your interest in our services.",
@@ -110,7 +113,6 @@ export function MessageThread({
     "Please let me know if you have any further questions.",
   ];
 
-  // Handle archive conversation
   const handleArchiveConversation = () => {
     toast({
       title: "Conversation archived",
@@ -120,7 +122,6 @@ export function MessageThread({
     });
   };
 
-  // Handle flag as important
   const handleFlagAsImportant = () => {
     toast({
       title: "Conversation flagged",
@@ -128,7 +129,6 @@ export function MessageThread({
     });
   };
 
-  // Handle add to group
   const handleAddToGroup = () => {
     toast({
       title: "Add to group",
@@ -136,7 +136,6 @@ export function MessageThread({
     });
   };
 
-  // Handle delete conversation
   const handleDeleteConversation = () => {
     toast({
       title: "Conversation deleted",
@@ -146,26 +145,44 @@ export function MessageThread({
     });
   };
 
-  // Scroll to bottom of messages
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
+  const handleSelectTemplate = (template: Template) => {
+    let processedContent = template.content;
+    
+    if (activeContact?.name) {
+      processedContent = processedContent.replace(/{{name}}/g, activeContact.name);
+    }
+    
+    processedContent = processedContent.replace(/{{date}}/g, new Date().toLocaleDateString());
+    processedContent = processedContent.replace(/{{time}}/g, new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+    
+    setMessageText(processedContent);
+    const dialogElement = document.querySelector('[role="dialog"]');
+    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
+    if (closeButton) closeButton.click();
+  };
+  
+  const handleSelectAISuggestion = (suggestion: string) => {
+    setMessageText(suggestion);
+  };
+  
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
     
     if (showScheduler && scheduledDate) {
-      // Combine date and time for scheduled message
       const [hours, minutes] = scheduledTime.split(':').map(Number);
       const scheduledDateTime = new Date(scheduledDate);
       scheduledDateTime.setHours(hours, minutes);
       
-      onSendMessage(messageText, scheduledDateTime);
+      onSendMessage(messageText, scheduledDateTime, cancelIfResponse);
       toast({
         title: "Message scheduled",
-        description: `Your message will be sent on ${scheduledDateTime.toLocaleString()}`,
+        description: `Your message will be sent on ${scheduledDateTime.toLocaleString()}${cancelIfResponse ? ' and will be cancelled if a response is received' : ''}`,
       });
     } else {
       onSendMessage(messageText);
@@ -174,6 +191,7 @@ export function MessageThread({
     setMessageText("");
     setShowScheduler(false);
     setScheduledDate(undefined);
+    setCancelIfResponse(false);
   };
 
   const handleCopyPhoneNumber = () => {
@@ -197,22 +215,6 @@ export function MessageThread({
     }
   };
 
-  // Properly handle dialog closing
-  const handleSelectAISuggestion = (suggestion: string) => {
-    setMessageText(suggestion);
-    const dialogElement = document.querySelector('[role="dialog"]');
-    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
-    if (closeButton) closeButton.click();
-  };
-
-  // Properly handle dialog closing for templates
-  const handleSelectTemplate = (template: string) => {
-    setMessageText(template);
-    const dialogElement = document.querySelector('[role="dialog"]');
-    const closeButton = dialogElement?.querySelector('button[data-dismiss]') as HTMLButtonElement | undefined;
-    if (closeButton) closeButton.click();
-  };
-
   const handleInsertEmoji = (emoji: string) => {
     setMessageText(prev => prev + emoji);
     setShowEmojiPicker(false);
@@ -231,6 +233,209 @@ export function MessageThread({
     }
   }, [initialMessage]);
 
+  useEffect(() => {
+    import("@/components/templates/TemplateGrid").then(module => {
+      if (module && module.sampleTemplates) {
+        setTemplates(module.sampleTemplates);
+      }
+    }).catch(err => {
+      console.error("Failed to load templates:", err);
+    });
+  }, []);
+  
+  const renderMainContent = () => {
+    return (
+      <>
+        <ScrollArea className="flex-1 p-4 bg-muted/10">
+          {messages.map((message) => (
+            <div 
+              key={message.id} 
+              className={`mb-4 flex ${message.type === 'outgoing' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[80%] ${message.type === 'outgoing' ? 'order-2' : 'order-1'}`}>
+                <div className={`p-3 rounded-2xl ${
+                  message.type === 'outgoing' 
+                    ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                    : 'bg-muted rounded-tl-none'
+                }`}>
+                  <p>{message.content}</p>
+                </div>
+                
+                <div className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${
+                  message.type === 'outgoing' ? 'justify-end' : 'justify-start'
+                }`}>
+                  {message.status === "scheduled" && message.scheduledTime && (
+                    <span className="text-yellow-500 mr-1">Scheduled for {message.scheduledTime}</span>
+                  )}
+                  <span>{message.timestamp}</span>
+                  {message.type === 'outgoing' && getStatusIcon(message)}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </ScrollArea>
+        
+        {showAIAssistant && activeContact && (
+          <div className="px-3 pt-3">
+            <AIAssistant 
+              messages={messages} 
+              activeContact={activeContact} 
+              onSelectSuggestion={handleSelectAISuggestion} 
+            />
+          </div>
+        )}
+      </>
+    );
+  };
+  
+  const renderSchedulerPopoverContent = () => {
+    return (
+      <div>
+        <div className="p-3 border-b">
+          <h4 className="font-medium">Schedule Message</h4>
+        </div>
+        
+        <div className="px-3 py-2">
+          <div className="space-y-2 mb-3">
+            <div 
+              className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
+              onClick={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(8, 0, 0, 0);
+                setScheduledDate(tomorrow);
+                setScheduledTime("08:00");
+              }}
+            >
+              Tomorrow morning 8 AM
+            </div>
+            <div 
+              className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
+              onClick={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(14, 0, 0, 0);
+                setScheduledDate(tomorrow);
+                setScheduledTime("14:00");
+              }}
+            >
+              Tomorrow afternoon 2 PM
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Custom Date & Time</p>
+            <CalendarComponent
+              mode="single"
+              selected={scheduledDate}
+              onSelect={setScheduledDate}
+              initialFocus
+            />
+            
+            <div className="flex items-center gap-2 mt-2">
+              <Input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="w-32"
+              />
+              
+              <Select defaultValue={timezone} onValueChange={setTimezone}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                  <SelectItem value="America/Chicago">Central Time</SelectItem>
+                  <SelectItem value="America/Denver">Mountain Time</SelectItem>
+                  <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <CancelConditions
+              cancelIfResponse={cancelIfResponse}
+              onCancelIfResponseChange={setCancelIfResponse}
+            />
+          </div>
+        </div>
+        
+        <div className="p-3 border-t flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">
+            {scheduledDate ? (
+              `Scheduled: ${scheduledDate.toLocaleDateString()} at ${scheduledTime}`
+            ) : (
+              "Select date and time"
+            )}
+          </span>
+          <Button 
+            size="sm"
+            disabled={!scheduledDate || !messageText.trim()}
+            onClick={handleSendMessage}
+          >
+            Schedule
+          </Button>
+        </div>
+      </div>
+    );
+  };
+  
+  const renderButtonBar = () => {
+    return (
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <Button 
+          variant={showAIAssistant ? "default" : "outline"} 
+          size="sm" 
+          className={`text-xs h-8 ${showAIAssistant ? "" : ""}`}
+          onClick={() => setShowAIAssistant(!showAIAssistant)}
+        >
+          <Sparkles className={`mr-1 h-3 w-3 ${showAIAssistant ? "text-primary-foreground" : "text-primary"}`} />
+          AI Assist
+        </Button>
+        
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="text-xs h-8">
+              Templates
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Message Templates</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-[400px] mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {templates.map((template) => (
+                  <div 
+                    key={template.id} 
+                    className="cursor-pointer"
+                    onClick={() => handleSelectTemplate(template)}
+                  >
+                    <div className="p-3 border rounded-lg hover:border-primary transition-colors">
+                      <h3 className="font-medium mb-1">{template.title}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {template.content}
+                      </p>
+                      <div className="flex gap-1 mt-2">
+                        {template.tags.slice(0, 2).map(tag => (
+                          <Badge key={tag} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <DialogClose data-dismiss />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+  
   if (!activeContact) {
     return (
       <div className="flex-1 flex items-center justify-center text-center p-8">
@@ -244,7 +449,7 @@ export function MessageThread({
       </div>
     );
   }
-
+  
   return (
     <div className="flex flex-col h-full border-r">
       <div className="p-3 border-b flex items-center justify-between bg-muted/20">
@@ -311,90 +516,11 @@ export function MessageThread({
         </div>
       </div>
       
-      <ScrollArea className="flex-1 p-4 bg-muted/10">
-        {messages.map((message) => (
-          <div 
-            key={message.id} 
-            className={`mb-4 flex ${message.type === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div className={`max-w-[80%] ${message.type === 'outgoing' ? 'order-2' : 'order-1'}`}>
-              <div className={`p-3 rounded-2xl ${
-                message.type === 'outgoing' 
-                  ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                  : 'bg-muted rounded-tl-none'
-              }`}>
-                <p>{message.content}</p>
-              </div>
-              
-              <div className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${
-                message.type === 'outgoing' ? 'justify-end' : 'justify-start'
-              }`}>
-                {message.status === "scheduled" && message.scheduledTime && (
-                  <span className="text-yellow-500 mr-1">Scheduled for {message.scheduledTime}</span>
-                )}
-                <span>{message.timestamp}</span>
-                {message.type === 'outgoing' && getStatusIcon(message)}
-              </div>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </ScrollArea>
+      {renderMainContent()}
       
       <div className="p-3 border-t">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs h-8">
-                <Sparkles className="mr-1 h-3 w-3 text-primary" />
-                AI Assist
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>AI Response Suggestions</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2 mt-2">
-                {aiSuggestions.map((suggestion, index) => (
-                  <div 
-                    key={index} 
-                    className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => handleSelectAISuggestion(suggestion)}
-                  >
-                    {suggestion}
-                  </div>
-                ))}
-              </div>
-              <DialogClose data-dismiss />
-            </DialogContent>
-          </Dialog>
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs h-8">
-                Templates
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Message Templates</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2 mt-2">
-                {messageTemplates.map((template, index) => (
-                  <div 
-                    key={index} 
-                    className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => handleSelectTemplate(template)}
-                  >
-                    {template}
-                  </div>
-                ))}
-              </div>
-              <DialogClose data-dismiss />
-            </DialogContent>
-          </Dialog>
-        </div>
-
+        {renderButtonBar()}
+        
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
@@ -457,86 +583,7 @@ export function MessageThread({
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-auto p-0" side="top">
-              <div className="p-3 border-b">
-                <h4 className="font-medium">Schedule Message</h4>
-              </div>
-              
-              <div className="px-3 py-2">
-                <div className="space-y-2 mb-3">
-                  <div 
-                    className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => {
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      tomorrow.setHours(8, 0, 0, 0);
-                      setScheduledDate(tomorrow);
-                      setScheduledTime("08:00");
-                    }}
-                  >
-                    Tomorrow morning 8 AM
-                  </div>
-                  <div 
-                    className="p-2 border rounded-md cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => {
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      tomorrow.setHours(14, 0, 0, 0);
-                      setScheduledDate(tomorrow);
-                      setScheduledTime("14:00");
-                    }}
-                  >
-                    Tomorrow afternoon 2 PM
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Custom Date & Time</p>
-                  <CalendarComponent
-                    mode="single"
-                    selected={scheduledDate}
-                    onSelect={setScheduledDate}
-                    initialFocus
-                  />
-                  
-                  <div className="flex items-center gap-2 mt-2">
-                    <Input
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                      className="w-32"
-                    />
-                    
-                    <Select defaultValue={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Timezone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-3 border-t flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  {scheduledDate ? (
-                    `Scheduled: ${scheduledDate.toLocaleDateString()} at ${scheduledTime}`
-                  ) : (
-                    "Select date and time"
-                  )}
-                </span>
-                <Button 
-                  size="sm"
-                  disabled={!scheduledDate || !messageText.trim()}
-                  onClick={handleSendMessage}
-                >
-                  Schedule
-                </Button>
-              </div>
+              {renderSchedulerPopoverContent()}
             </PopoverContent>
           </Popover>
           

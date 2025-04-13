@@ -16,6 +16,7 @@ import Scheduler from "./pages/Scheduler";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import Credits from "./pages/Credits"; 
+import AISettings from "./pages/AISettings";
 
 // Create a new QueryClient instance outside the component to avoid recreating it on every render
 const queryClient = new QueryClient();
@@ -64,6 +65,11 @@ const App = () => (
           <Route path="/credits" element={
             <ProtectedRoute>
               <Credits />
+            </ProtectedRoute>
+          } />
+          <Route path="/ai-settings" element={
+            <ProtectedRoute>
+              <AISettings />
             </ProtectedRoute>
           } />
           <Route path="/auth" element={<Auth />} />

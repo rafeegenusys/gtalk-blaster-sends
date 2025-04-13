@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,13 @@ import {
   Plus, 
   User as UserIcon
 } from "lucide-react";
+import { PinToChat } from "@/components/messaging/PinToChat";
+import { ActivityItem } from "@/components/dashboard/RecentActivity";
+
+interface MessageWithPinning extends Message {
+  isPinned?: boolean;
+  cancelIfResponse?: boolean;
+}
 
 const Messaging = () => {
   const [showNewMessage, setShowNewMessage] = useState(false);
@@ -74,7 +80,7 @@ const Messaging = () => {
     }
   ]);
 
-  const [messages, setMessages] = useState<Record<string, Message[]>>({
+  const [messages, setMessages] = useState<Record<string, MessageWithPinning[]>>({
     "1": [
       { id: "m1", content: "Hi, I have a question about your product", timestamp: "10:20 AM", type: "incoming" },
       { id: "m2", content: "Sure, how can I help you?", timestamp: "10:22 AM", type: "outgoing", status: "read" },
@@ -101,20 +107,41 @@ const Messaging = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [mobileView, setMobileView] = useState<'contacts' | 'conversation' | 'details'>('contacts');
-  // Use a ref to track if we've already shown the welcome toast
   const welcomeToastShownRef = useRef(false);
   const initialRenderRef = useRef(true);
 
-  // Only show welcome toast on first render, not on subsequent renders or focus events
   useEffect(() => {
-    // First render has already happened after this effect runs
     initialRenderRef.current = false;
   }, []);
 
-  const handleSendMessage = (text: string, scheduledTime?: Date) => {
+  const handleTogglePin = (contactId: string, messageId: string) => {
+    setMessages(prev => {
+      const contactMessages = [...prev[contactId]];
+      const messageIndex = contactMessages.findIndex(m => m.id === messageId);
+      
+      if (messageIndex !== -1) {
+        contactMessages[messageIndex] = {
+          ...contactMessages[messageIndex],
+          isPinned: !contactMessages[messageIndex].isPinned
+        };
+      }
+      
+      return {
+        ...prev,
+        [contactId]: contactMessages
+      };
+    });
+    
+    toast({
+      title: "Message pinned",
+      description: "You can find this pinned message easily for reference",
+    });
+  };
+  
+  const handleSendMessage = (text: string, scheduledTime?: Date, cancelIfResponse?: boolean) => {
     if (!activeContact) return;
     
-    const newMessage: Message = {
+    const newMessage: MessageWithPinning = {
       id: `m${Date.now()}`,
       content: text,
       timestamp: scheduledTime 
@@ -131,6 +158,10 @@ const Messaging = () => {
         hour: '2-digit',
         minute: '2-digit'
       });
+      
+      if (cancelIfResponse) {
+        newMessage.cancelIfResponse = true;
+      }
     }
     
     setMessages(prev => ({
@@ -138,7 +169,6 @@ const Messaging = () => {
       [activeContact.id]: [...(prev[activeContact.id] || []), newMessage]
     }));
     
-    // Update the contact's last message
     setContacts(prev => prev.map(contact => 
       contact.id === activeContact.id
         ? { 
@@ -150,7 +180,6 @@ const Messaging = () => {
         : contact
     ));
     
-    // Simulate message delivered after a delay if not scheduled
     if (!scheduledTime) {
       setTimeout(() => {
         setMessages(prev => {
@@ -180,15 +209,12 @@ const Messaging = () => {
   };
 
   const handleNewMessageSend = (phoneNumber: string, message: string) => {
-    // Check if contact with this phone number already exists
     const existingContact = contacts.find(c => c.phone === phoneNumber);
     
     if (existingContact) {
-      // Send message to existing contact
       setActiveContact(existingContact);
       handleSendMessage(message);
     } else {
-      // Create new contact and send message
       const newContact: Contact = {
         id: `new-${Date.now()}`,
         name: "",
@@ -199,7 +225,6 @@ const Messaging = () => {
       
       setContacts(prev => [...prev, newContact]);
       
-      // Create new message thread
       setMessages(prev => ({
         ...prev,
         [newContact.id]: [{
@@ -309,6 +334,31 @@ const Messaging = () => {
     }
   };
 
+  const handleActivityClick = (activity: ActivityItem) => {
+    const contact = contacts.find(c => c.phone === activity.phone);
+    
+    if (contact) {
+      setActiveContact(contact);
+      if (isMobile) {
+        setMobileView('conversation');
+      }
+    } else {
+      const newContact: Contact = {
+        id: `new-${Date.now()}`,
+        name: activity.contact,
+        phone: activity.phone,
+        lastMessage: activity.message,
+        lastMessageTime: activity.timestamp
+      };
+      
+      setContacts(prev => [...prev, newContact]);
+      setActiveContact(newContact);
+      if (isMobile) {
+        setMobileView('conversation');
+      }
+    }
+  };
+  
   return (
     <Dashboard title="Messaging">
       {isMobile ? (
@@ -341,7 +391,6 @@ const Messaging = () => {
                 if (isMobile) {
                   setMobileView('conversation');
                 }
-                // Close the new message view if it's open
                 if (showNewMessage) {
                   setShowNewMessage(false);
                 }
