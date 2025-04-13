@@ -79,9 +79,10 @@ export function AIAssistant({ messages, activeContact, onSelectSuggestion }: AIA
   };
   
   const buildMessageHistory = () => {
-    const history = [
+    // Fix for the type error: explicitly define the message history type
+    const history: { role: 'system' | 'user' | 'assistant', content: string }[] = [
       {
-        role: 'system' as const,
+        role: 'system',
         content: `You are an AI assistant helping a customer support agent respond to messages. 
         Generate 3 concise, professional, and helpful response options based on the conversation history. 
         Each suggestion should be less than 100 characters if possible. 
@@ -93,7 +94,7 @@ export function AIAssistant({ messages, activeContact, onSelectSuggestion }: AIA
     const lastMessages = messages.slice(-10); // Take last 10 messages for context
     lastMessages.forEach(message => {
       history.push({
-        role: message.type === 'incoming' ? 'user' as const : 'assistant' as const,
+        role: message.type === 'incoming' ? 'user' : 'assistant',
         content: message.content
       });
     });
