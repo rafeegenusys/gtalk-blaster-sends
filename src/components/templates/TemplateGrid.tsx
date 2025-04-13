@@ -17,8 +17,8 @@ export interface Template {
   hasImage?: boolean;
 }
 
-// Sample template data
-const sampleTemplates: Template[] = [
+// Sample template data - exported so it can be used in other components
+export const sampleTemplates: Template[] = [
   {
     id: "1",
     title: "Welcome Message",

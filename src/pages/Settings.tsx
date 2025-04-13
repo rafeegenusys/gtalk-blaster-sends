@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { MoonIcon, SunIcon, MonitorIcon, PaletteIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const Settings = () => {
   const [openrouterKey, setOpenrouterKey] = useState("");
@@ -20,9 +23,22 @@ const Settings = () => {
   const [openphoneApiKey, setOpenphoneApiKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [primaryColor, setPrimaryColor] = useState("#8B5CF6");
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
+  
+  // Available theme colors
+  const themeColors = [
+    { name: "Purple", value: "#8B5CF6" },
+    { name: "Blue", value: "#0EA5E9" },
+    { name: "Green", value: "#10B981" },
+    { name: "Pink", value: "#D946EF" },
+    { name: "Orange", value: "#F97316" }
+  ];
   
   // Fetch existing settings
   const fetchSettings = async () => {
@@ -52,6 +68,9 @@ const Settings = () => {
         setTwilioSid(data.twilio_sid || "");
         setTwilioAuthToken(data.twilio_auth_token || "");
         setOpenphoneApiKey(data.openphone_api_key || "");
+        setNotificationsEnabled(data.notifications_enabled !== false);
+        setSoundEnabled(data.sound_enabled !== false);
+        setPrimaryColor(data.primary_color || "#8B5CF6");
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -96,6 +115,12 @@ const Settings = () => {
         } else if (smsProvider === "openphone") {
           updateData.openphone_api_key = openphoneApiKey;
         }
+      } else if (activeTab === "appearance") {
+        updateData.primary_color = primaryColor;
+        // Theme is handled by next-themes and stored in localStorage
+      } else if (activeTab === "notifications") {
+        updateData.notifications_enabled = notificationsEnabled;
+        updateData.sound_enabled = soundEnabled;
       }
       
       const { error } = await supabase
@@ -121,17 +146,19 @@ const Settings = () => {
   };
   
   // Load settings on mount
-  useState(() => {
+  useEffect(() => {
     fetchSettings();
-  });
+  }, [user]);
   
   return (
     <Dashboard title="Settings">
       <div className="grid gap-6">
         <Tabs defaultValue="ai" onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 overflow-x-auto flex">
             <TabsTrigger value="ai">AI Configuration</TabsTrigger>
             <TabsTrigger value="sms">SMS Provider</TabsTrigger>
+            <TabsTrigger value="appearance">Appearance</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
           
@@ -220,6 +247,8 @@ const Settings = () => {
                     <SelectContent>
                       <SelectItem value="twilio">Twilio</SelectItem>
                       <SelectItem value="openphone">OpenPhone</SelectItem>
+                      <SelectItem value="vonage">Vonage</SelectItem>
+                      <SelectItem value="messagebird">MessageBird</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -273,6 +302,143 @@ const Settings = () => {
             </Card>
           </TabsContent>
           
+          <TabsContent value="appearance">
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance Settings</CardTitle>
+                <CardDescription>
+                  Customize the look and feel of your application
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <PaletteIcon className="h-4 w-4 mr-2" />
+                    Theme Mode
+                  </h3>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div 
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border ${theme === 'light' ? 'border-primary bg-primary/5' : 'border-muted'} cursor-pointer`}
+                      onClick={() => setTheme('light')}
+                    >
+                      <SunIcon className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Light</span>
+                    </div>
+                    
+                    <div 
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border ${theme === 'dark' ? 'border-primary bg-primary/5' : 'border-muted'} cursor-pointer`}
+                      onClick={() => setTheme('dark')}
+                    >
+                      <MoonIcon className="h-6 w-6 mb-2" />
+                      <span className="text-sm">Dark</span>
+                    </div>
+                    
+                    <div 
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border ${theme === 'system' ? 'border-primary bg-primary/5' : 'border-muted'} cursor-pointer`}
+                      onClick={() => setTheme('system')}
+                    >
+                      <MonitorIcon className="h-6 w-6 mb-2" />
+                      <span className="text-sm">System</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-md font-medium mb-3">Brand Color</h3>
+                  
+                  <div className="grid grid-cols-5 gap-2">
+                    {themeColors.map((color) => (
+                      <div 
+                        key={color.value}
+                        className={`flex flex-col items-center p-2 rounded-lg border ${primaryColor === color.value ? 'border-primary' : 'border-muted'} cursor-pointer`}
+                        onClick={() => setPrimaryColor(color.value)}
+                      >
+                        <div 
+                          className="h-8 w-8 rounded-full mb-1"
+                          style={{ backgroundColor: color.value }}
+                        ></div>
+                        <span className="text-xs">{color.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Custom color picker coming soon
+                  </p>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
+                  onClick={saveSettings}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Appearance Settings"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Settings</CardTitle>
+                <CardDescription>
+                  Configure how you want to be notified about messages and events
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between space-x-2">
+                  <Label htmlFor="enable-notifications" className="flex-1">Enable notifications</Label>
+                  <Switch
+                    id="enable-notifications"
+                    checked={notificationsEnabled}
+                    onCheckedChange={setNotificationsEnabled}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <Label htmlFor="enable-sound" className="flex-1">Notification sounds</Label>
+                  <Switch
+                    id="enable-sound"
+                    checked={soundEnabled}
+                    onCheckedChange={setSoundEnabled}
+                    disabled={!notificationsEnabled}
+                  />
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h3 className="text-md font-medium mb-3">Notification Preferences</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-new-messages" className="flex-1">New messages</Label>
+                      <Switch id="notify-new-messages" defaultChecked disabled={!notificationsEnabled} />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-mentions" className="flex-1">Mentions and replies</Label>
+                      <Switch id="notify-mentions" defaultChecked disabled={!notificationsEnabled} />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-scheduled" className="flex-1">Scheduled messages</Label>
+                      <Switch id="notify-scheduled" defaultChecked disabled={!notificationsEnabled} />
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
+                  onClick={saveSettings}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Notification Settings"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           <TabsContent value="account">
             <Card>
               <CardHeader>
@@ -281,10 +447,64 @@ const Settings = () => {
                   Manage your account settings, business profile, and user access
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Account management features coming soon!
-                </p>
+              <CardContent className="space-y-6">
+                <div className="grid gap-3">
+                  <Label htmlFor="company-name">Company Name</Label>
+                  <Input
+                    id="company-name"
+                    placeholder="Enter your company name"
+                    defaultValue="Acme Inc."
+                  />
+                </div>
+                
+                <div className="grid gap-3">
+                  <Label htmlFor="business-phone">Business Phone</Label>
+                  <Input
+                    id="business-phone"
+                    placeholder="Enter your business phone"
+                    defaultValue="+1 (555) 123-4567"
+                  />
+                </div>
+                
+                <div className="grid gap-3">
+                  <Label htmlFor="business-email">Business Email</Label>
+                  <Input
+                    id="business-email"
+                    type="email"
+                    placeholder="Enter your business email"
+                    defaultValue="contact@acmeinc.com"
+                  />
+                </div>
+                
+                <div className="grid gap-3">
+                  <Label htmlFor="business-address">Business Address</Label>
+                  <Input
+                    id="business-address"
+                    placeholder="Enter your business address"
+                    defaultValue="123 Main St, Anytown, USA"
+                  />
+                </div>
+                
+                <div className="pt-4 mt-4 border-t">
+                  <h3 className="text-md font-medium mb-3">Subscription & Billing</h3>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">Current Plan: Professional</p>
+                        <p className="text-sm text-muted-foreground">Billed monthly</p>
+                      </div>
+                      <Button variant="outline">Manage</Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
+                  onClick={saveSettings}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Account Settings"}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

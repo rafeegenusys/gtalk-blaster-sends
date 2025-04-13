@@ -1,9 +1,9 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, Send, MessageSquare } from "lucide-react";
+import { ChevronLeft, Send, MessageSquare, Search } from "lucide-react";
 import { MessageThread } from "./MessageThread";
 import { 
   Dialog,
@@ -14,40 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import { Template } from "@/components/templates/TemplateGrid";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { processTemplate } from "@/utils/templateHelpers";
 
-// Sample templates for demo
-const sampleTemplates = [
-  {
-    id: "1",
-    title: "Welcome Message",
-    content: "Hi {{name}}, welcome to our service! How can we help you today?",
-    tags: ["welcome", "intro"],
-    category: "General",
-    color: "#8B5CF6", // Purple
-    createdAt: "2025-04-01",
-    updatedAt: "2025-04-01"
-  },
-  {
-    id: "2", 
-    title: "Appointment Reminder",
-    content: "Hello {{name}}, this is a reminder about your appointment on {{date}} at {{time}}. Please reply to confirm.",
-    tags: ["appointment", "reminder"],
-    category: "Scheduling",
-    color: "#0EA5E9", // Blue
-    createdAt: "2025-04-02",
-    updatedAt: "2025-04-05"
-  },
-  {
-    id: "3",
-    title: "Follow-up",
-    content: "Hi {{name}}, just following up on our conversation about {{topic}}. Do you have any questions?",
-    tags: ["follow-up", "sales"],
-    category: "Sales",
-    color: "#F97316", // Orange
-    createdAt: "2025-04-03",
-    updatedAt: "2025-04-06"
-  }
-];
+// Importing the sample templates from TemplateGrid to ensure consistency
+import { TemplateCard } from "@/components/templates/TemplateCard";
 
 interface NewMessageProps {
   onSend: (phoneNumber: string, message: string) => void;
@@ -59,6 +31,44 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
   const [showMessageThread, setShowMessageThread] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  
+  // Import templates from the same source as the Templates page
+  const [templates, setTemplates] = useState<Template[]>([]);
+  
+  // Fetch templates - in a real app, this would be from an API or context
+  useEffect(() => {
+    // Using the same sample data as TemplateGrid for consistency
+    import("@/components/templates/TemplateGrid").then(module => {
+      // Access the sampleTemplates from the imported module
+      if (module && module.sampleTemplates) {
+        setTemplates(module.sampleTemplates);
+      }
+    }).catch(err => {
+      console.error("Failed to load templates:", err);
+    });
+  }, []);
+  
+  // Get unique categories from templates
+  const categories = templates.length > 0 
+    ? ["All", ...Array.from(new Set(templates.map(t => t.category)))] 
+    : ["All"];
+  
+  // Filter templates based on search query and active category
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = 
+      searchQuery === "" || 
+      template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesCategory = 
+      activeCategory === "all" || 
+      template.category.toLowerCase() === activeCategory.toLowerCase();
+    
+    return matchesSearch && matchesCategory;
+  });
   
   const handleContinue = () => {
     if (phoneNumber.trim()) {
@@ -130,37 +140,54 @@ export function NewMessage({ onSend, onBack }: NewMessageProps) {
                       Templates
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="sm:max-w-[680px] max-h-[80vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                       <DialogTitle>Select Template</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3 py-3">
-                      {sampleTemplates.map(template => (
-                        <div 
-                          key={template.id}
-                          className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleSelectTemplate(template)}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <h4 className="font-medium text-sm">{template.title}</h4>
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: template.color }}
-                            ></div>
-                          </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {template.content}
-                          </p>
-                          <div className="mt-2 flex gap-1 flex-wrap">
-                            {template.tags.map(tag => (
-                              <Badge key={tag} variant="outline" className="text-xs bg-muted/50">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                    
+                    <div className="flex items-center gap-2 my-2 px-1">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search templates..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-8"
+                      />
                     </div>
+                    
+                    <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
+                      <TabsList className="mb-3 bg-muted/80 overflow-x-auto flex w-full gap-1">
+                        {categories.map((category) => (
+                          <TabsTrigger 
+                            key={category.toLowerCase()} 
+                            value={category.toLowerCase()}
+                            className="text-xs px-3 py-1"
+                          >
+                            {category}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                      
+                      <ScrollArea className="flex-1 pr-4 h-[400px]">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {filteredTemplates.map(template => (
+                            <div 
+                              key={template.id}
+                              className="cursor-pointer"
+                              onClick={() => handleSelectTemplate(template)}
+                            >
+                              <TemplateCard template={template} isCompact={true} />
+                            </div>
+                          ))}
+                          
+                          {filteredTemplates.length === 0 && (
+                            <div className="col-span-full text-center py-8">
+                              <p className="text-muted-foreground">No templates found matching your search.</p>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </Tabs>
                   </DialogContent>
                 </Dialog>
               </div>

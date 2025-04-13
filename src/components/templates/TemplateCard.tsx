@@ -23,12 +23,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DialogEditTemplate } from "./DialogEditTemplate";
 import { useToast } from "@/components/ui/use-toast";
+import { extractPlaceholders } from "@/utils/templateHelpers";
 
 interface TemplateCardProps {
   template: Template;
+  isCompact?: boolean;
 }
 
-export function TemplateCard({ template }: TemplateCardProps) {
+export function TemplateCard({ template, isCompact = false }: TemplateCardProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const { toast } = useToast();
   
@@ -36,7 +38,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const formattedDate = formatDistanceToNow(new Date(template.updatedAt), { addSuffix: true });
   
   // Extract placeholders from content
-  const placeholders = template.content.match(/{{([^}]+)}}/g)?.map(p => p.slice(2, -2)) || [];
+  const placeholders = extractPlaceholders(template.content);
   
   const handleCopy = () => {
     navigator.clipboard.writeText(template.content);
@@ -61,6 +63,37 @@ export function TemplateCard({ template }: TemplateCardProps) {
     });
     // In a real app, you would delete from the database
   };
+
+  if (isCompact) {
+    // Compact version for template selection dialog
+    return (
+      <Card className="hover:shadow-md transition-shadow duration-200 h-full border overflow-hidden">
+        <div className="h-1" style={{ backgroundColor: template.color || '#8B5CF6' }}></div>
+        <CardContent className="p-3">
+          <div className="flex justify-between items-start mb-1">
+            <h3 className="font-medium text-sm line-clamp-1">{template.title}</h3>
+          </div>
+          
+          <div className="flex gap-1 flex-wrap my-1">
+            {template.tags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs bg-muted/70 py-0">
+                {tag}
+              </Badge>
+            ))}
+            {template.tags.length > 2 && (
+              <Badge variant="outline" className="text-xs bg-muted/70 py-0">
+                +{template.tags.length - 2}
+              </Badge>
+            )}
+          </div>
+          
+          <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
+            {template.content}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>

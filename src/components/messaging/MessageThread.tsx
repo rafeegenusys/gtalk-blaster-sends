@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +70,7 @@ interface MessageThreadProps {
   onSendMessage: (text: string, scheduledTime?: Date) => void;
   onBackClick?: () => void;
   showBackButton?: boolean;
+  initialMessage?: string; // Add initialMessage prop
 }
 
 export function MessageThread({
@@ -79,8 +79,9 @@ export function MessageThread({
   onSendMessage,
   onBackClick,
   showBackButton = false,
+  initialMessage = "", // Set default value
 }: MessageThreadProps) {
-  const [messageText, setMessageText] = useState("");
+  const [messageText, setMessageText] = useState(initialMessage); // Initialize with initialMessage
   const [showScheduler, setShowScheduler] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState<string>("08:00");
@@ -223,6 +224,12 @@ export function MessageThread({
       description: "This feature will be available soon",
     });
   };
+
+  useEffect(() => {
+    if (initialMessage) {
+      setMessageText(initialMessage);
+    }
+  }, [initialMessage]);
 
   if (!activeContact) {
     return (
