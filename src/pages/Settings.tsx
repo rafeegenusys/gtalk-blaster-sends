@@ -14,6 +14,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MoonIcon, SunIcon, MonitorIcon, PaletteIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
+// Define the shape of our business settings type
+interface BusinessSettings {
+  business_id: string;
+  created_at?: string;
+  id?: string;
+  openphone_api_key?: string;
+  openrouter_key?: string;
+  preferred_llm_model?: string;
+  sms_provider?: string;
+  twilio_auth_token?: string;
+  twilio_sid?: string;
+  updated_at?: string;
+  notifications_enabled?: boolean;
+  sound_enabled?: boolean;
+  primary_color?: string;
+}
+
 const Settings = () => {
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [preferredModel, setPreferredModel] = useState("");
@@ -62,15 +79,19 @@ const Settings = () => {
       if (error) throw error;
       
       if (data) {
-        setOpenrouterKey(data.openrouter_key || "");
-        setPreferredModel(data.preferred_llm_model || "");
-        setSmsProvider(data.sms_provider || "twilio");
-        setTwilioSid(data.twilio_sid || "");
-        setTwilioAuthToken(data.twilio_auth_token || "");
-        setOpenphoneApiKey(data.openphone_api_key || "");
-        setNotificationsEnabled(data.notifications_enabled !== false);
-        setSoundEnabled(data.sound_enabled !== false);
-        setPrimaryColor(data.primary_color || "#8B5CF6");
+        // Cast data to BusinessSettings type to safely access properties
+        const settings = data as BusinessSettings;
+        setOpenrouterKey(settings.openrouter_key || "");
+        setPreferredModel(settings.preferred_llm_model || "");
+        setSmsProvider(settings.sms_provider || "twilio");
+        setTwilioSid(settings.twilio_sid || "");
+        setTwilioAuthToken(settings.twilio_auth_token || "");
+        setOpenphoneApiKey(settings.openphone_api_key || "");
+        
+        // Safely access the potentially undefined properties
+        setNotificationsEnabled(settings.notifications_enabled !== false);
+        setSoundEnabled(settings.sound_enabled !== false);
+        setPrimaryColor(settings.primary_color || "#8B5CF6");
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -99,7 +120,7 @@ const Settings = () => {
         throw new Error("Business ID not found");
       }
       
-      const updateData: any = {
+      const updateData: BusinessSettings = {
         business_id: profileData.business_id
       };
       
