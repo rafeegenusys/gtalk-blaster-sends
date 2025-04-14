@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MessageSquare, Bell, UserCheck } from "lucide-react";
 
 export interface StatsData {
-  monthlyMessages: number;
+  totalSent: number;
   activeContacts: number;
   unreadCount: number;
   scheduled: number;
@@ -22,7 +22,7 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
           <Calendar className="w-4 h-4 text-gtalk-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.monthlyMessages.toLocaleString()}</div>
+          <div className="text-2xl font-bold">{stats.totalSent.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground mt-1">
             Messages received this month
           </p>

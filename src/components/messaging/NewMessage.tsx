@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Tag, FolderOpen } from "lucide-react";
+import { Search, Tag, FolderOpen, ChevronLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Template } from "@/components/templates/TemplateGrid";
@@ -14,9 +14,10 @@ interface NewMessageProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSend: (phoneNumber: string, message: string) => void;
+  onBack?: () => void; // Add optional onBack prop
 }
 
-export function NewMessage({ open, onOpenChange, onSend }: NewMessageProps) {
+export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessageProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +39,16 @@ export function NewMessage({ open, onOpenChange, onSend }: NewMessageProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col dark:bg-card">
         <DialogHeader>
+          {onBack && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="absolute left-2 top-2 p-0 w-8 h-8"
+              onClick={onBack}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
           <DialogTitle>New Message</DialogTitle>
         </DialogHeader>
 
