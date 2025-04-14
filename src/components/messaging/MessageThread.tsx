@@ -25,8 +25,8 @@ export interface Contact {
   id: string;
   name: string;
   phone: string;
-  lastMessage: string;
-  lastMessageTime: string;
+  lastMessage?: string;  // Changed to optional to match ContactList.Contact
+  lastMessageTime?: string; // Changed to optional to match ContactList.Contact
   unread?: boolean;
   status?: "online" | "offline" | "away";
   missedCall?: boolean;
