@@ -392,85 +392,89 @@ const Messaging = () => {
   
   return (
     <Dashboard title="Messaging">
-      {isMobile ? (
-        <div className="h-[calc(100vh-4rem)]">
-          {renderMobileView()}
-        </div>
-      ) : (
-        <div className="grid grid-cols-12 h-[calc(100vh-4rem)] overflow-hidden bg-background">
-          {/* Left Column - Contacts */}
-          <div className="col-span-12 sm:col-span-4 md:col-span-3 flex flex-col h-full border rounded-l-md">
-            <div className="flex justify-between items-center p-3 border-b">
-              <h2 className="font-semibold text-lg">Messages</h2>
-              <div className="flex items-center gap-2">
-                <NotificationBell />
-                <Button 
-                  size="sm" 
-                  onClick={handleNewMessageClick}
-                  className="gap-1"
-                >
-                  <Plus className="h-4 w-4" /> New
-                </Button>
-              </div>
-            </div>
-            <MessageFilters onFilterChange={handleFilterChange} />
-            <ContactList
-              contacts={contacts}
-              activeContact={activeContact}
-              setActiveContact={(contact) => {
-                setActiveContact(contact);
-                if (isMobile) {
-                  setMobileView('conversation');
-                }
-                if (showNewMessage) {
-                  setShowNewMessage(false);
-                }
-              }}
-              filter={selectedFilter}
-            />
-          </div>
-          
-          {/* Middle Column - Messages */}
-          <div className="hidden sm:flex col-span-8 md:col-span-5 flex-col h-full border-t border-b">
-            {showNewMessage ? (
-              <NewMessage 
-                open={true}
-                onOpenChange={setShowNewMessage}
-                onSend={handleNewMessageSend} 
-                onBack={() => setShowNewMessage(false)} 
-              />
-            ) : (
-              <MessageThread
-                activeContact={activeContact}
-                messages={activeContact ? messages[activeContact.id] || [] : []}
-                onSendMessage={handleSendMessage}
-              />
-            )}
-          </div>
-          
-          {/* Right Column - Contact Details */}
-          <div className="hidden md:block col-span-4 h-full border rounded-r-md">
-            {activeContact ? (
-              <ContactDetails
-                contact={activeContact}
-                onContactUpdate={handleContactUpdate}
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-center p-8 h-full">
-                <div>
-                  <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                    <UserIcon className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">No contact selected</h3>
-                  <p className="text-muted-foreground">
-                    Select a conversation to view contact details
-                  </p>
+      <div className="h-[calc(100vh-4rem)] bg-background">
+        {isMobile ? (
+          renderMobileView()
+        ) : (
+          <div className="grid grid-cols-12 h-full">
+            {/* Left Column - Contacts */}
+            <div className="col-span-12 sm:col-span-4 md:col-span-3 flex flex-col h-full border-r">
+              <div className="flex justify-between items-center p-3 border-b">
+                <h2 className="font-semibold text-lg">Messages</h2>
+                <div className="flex items-center gap-2">
+                  <NotificationBell />
+                  <Button 
+                    size="sm" 
+                    onClick={handleNewMessageClick}
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> New
+                  </Button>
                 </div>
               </div>
-            )}
+              <MessageFilters onFilterChange={handleFilterChange} />
+              <ContactList
+                contacts={contacts}
+                activeContact={activeContact}
+                setActiveContact={(contact) => {
+                  setActiveContact(contact);
+                  if (isMobile) {
+                    setMobileView('conversation');
+                  }
+                  if (showNewMessage) {
+                    setShowNewMessage(false);
+                  }
+                }}
+                filter={selectedFilter}
+              />
+            </div>
+            
+            {/* Middle Column - Messages */}
+            <div className="hidden sm:flex col-span-8 md:col-span-6 flex-col h-full border-r">
+              {showNewMessage ? (
+                <NewMessage 
+                  open={true}
+                  onOpenChange={setShowNewMessage}
+                  onSend={handleNewMessageSend}
+                  onBack={() => setShowNewMessage(false)}
+                />
+              ) : (
+                <MessageThread
+                  activeContact={activeContact}
+                  messages={activeContact ? messages[activeContact.id] || [] : []}
+                  onSendMessage={handleSendMessage}
+                  onOpenInternalThread={(messageId) => {
+                    // Handle opening internal thread
+                    console.log("Opening internal thread for message:", messageId);
+                  }}
+                />
+              )}
+            </div>
+            
+            {/* Right Column - Contact Details */}
+            <div className="hidden md:block col-span-3 h-full">
+              {activeContact ? (
+                <ContactDetails
+                  contact={activeContact}
+                  onContactUpdate={handleContactUpdate}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-center p-8 h-full">
+                  <div>
+                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                      <UserIcon className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">No contact selected</h3>
+                    <p className="text-muted-foreground">
+                      Select a conversation to view contact details
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </Dashboard>
   );
 };
