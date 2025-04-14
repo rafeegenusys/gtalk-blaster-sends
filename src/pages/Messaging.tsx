@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { Button } from "@/components/ui/button";
@@ -281,6 +280,8 @@ const Messaging = () => {
     if (showNewMessage) {
       return (
         <NewMessage 
+          open={true}
+          onOpenChange={setShowNewMessage}
           onSend={handleNewMessageSend} 
           onBack={() => {
             setShowNewMessage(false);
@@ -433,6 +434,8 @@ const Messaging = () => {
           <div className="hidden sm:flex col-span-8 md:col-span-5 flex-col h-full border-t border-b">
             {showNewMessage ? (
               <NewMessage 
+                open={true}
+                onOpenChange={setShowNewMessage}
                 onSend={handleNewMessageSend} 
                 onBack={() => setShowNewMessage(false)} 
               />

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dashboard } from "@/components/layout/Dashboard";
 import { CreditBalance } from "@/components/dashboard/CreditBalance";
@@ -14,7 +13,7 @@ const Index = () => {
   const [stats, setStats] = useState<StatsData>({
     totalSent: 0,
     activeContacts: 0,
-    deliveryRate: 0,
+    unreadCount: 0,
     scheduled: 0
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -30,7 +29,7 @@ const Index = () => {
         setStats({
           totalSent: 238,
           activeContacts: 47,
-          deliveryRate: 98,
+          unreadCount: 12,
           scheduled: 5
         });
         
@@ -136,12 +135,12 @@ const Index = () => {
         const deliveredCount = messagesArray.filter(msg => msg.status === 'delivered').length;
         const sentCount = messagesArray.filter(msg => msg.status === 'sent').length;
         
-        const deliveryRate = sentCount > 0 ? Math.round((deliveredCount / sentCount) * 100) : 0;
+        const unreadCount = deliveredCount > 0 ? Math.round((deliveredCount / sentCount) * 100) : 0;
 
         setStats({
           totalSent,
           activeContacts: contactsCount || 0,
-          deliveryRate,
+          unreadCount,
           scheduled: scheduledCount
         });
 
@@ -196,7 +195,7 @@ const Index = () => {
         setStats({
           totalSent: 238,
           activeContacts: 47,
-          deliveryRate: 98,
+          unreadCount: 5,
           scheduled: 5
         });
         
