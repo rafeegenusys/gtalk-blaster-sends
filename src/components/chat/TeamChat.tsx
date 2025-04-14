@@ -1,17 +1,14 @@
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Send, Paperclip, Smile } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Send, Paperclip, Image, CheckCheck, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TeamMentions } from "./TeamMentions";
-import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Message {
   id: string;
@@ -19,15 +16,8 @@ interface Message {
   sender_id: string;
   created_at: string;
   read_status: boolean;
-  media_url?: string;
+  media_url: string | null;
   sender_name?: string;
-  mentions?: string[];
-}
-
-interface TeamMember {
-  id: string;
-  name: string;
-  avatar?: string;
 }
 
 export function TeamChat() {
@@ -35,11 +25,11 @@ export function TeamChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<Record<string, { name: string }>>({});
   const [loading, setLoading] = useState(true);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
-
+  
+  // Fetch messages and subscribe to new ones
   useEffect(() => {
     if (!user) return;
     
@@ -82,21 +72,6 @@ export function TeamChat() {
           });
           
           setUsers(usersMap);
-        }
-        
-        // After getting profiles, fetch team members for mentions
-        const { data: teamData } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .eq('business_id', profileData.business_id);
-          
-        if (teamData) {
-          const mappedTeamMembers: TeamMember[] = teamData.map(member => ({
-            id: member.id,
-            name: member.full_name || member.email?.split('@')[0] || 'Unknown User',
-            avatar: undefined // Could add avatars in the future
-          }));
-          setTeamMembers(mappedTeamMembers);
         }
         
         setMessages(data || []);
@@ -184,31 +159,16 @@ export function TeamChat() {
       // Cleanup is handled by the returned function from fetchBusinessId
     };
   }, [user, toast]);
-
-  // Scroll to bottom when messages change
+  
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const handleMention = (userId: string) => {
-    toast({
-      title: "Mention sent",
-      description: `Notification sent to the mentioned team member.`,
-    });
-  };
-
-  const handleEmojiSelect = (emoji: any) => {
-    setMessage(prev => prev + emoji.native);
-  };
-
+  
   const handleSend = async () => {
     if (!user || !message.trim()) return;
     
     try {
-      // Extract mentions from message
-      const mentionRegex = /@(\w+)/g;
-      const mentions = [...message.matchAll(mentionRegex)].map(match => match[1]);
-      
       // Get business ID
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -217,15 +177,19 @@ export function TeamChat() {
         .single();
       
       if (profileError) throw profileError;
+      if (!profileData?.business_id) {
+        throw new Error('Business ID not found');
+      }
       
-      // Send message with mentions
+      // Send message
       const { error } = await supabase
         .from('chat_messages')
         .insert({
           content: message.trim(),
           sender_id: user.id,
-          business_id: profileData?.business_id,
-          mentions: mentions
+          receiver_id: profileData.business_id, // Using business_id as the receiver for team chat
+          business_id: profileData.business_id,
+          read_status: false
         });
       
       if (error) throw error;
@@ -241,105 +205,178 @@ export function TeamChat() {
       });
     }
   };
-
+  
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+    
+    try {
+      // Get business ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('business_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileError) throw profileError;
+      if (!profileData?.business_id) {
+        throw new Error('Business ID not found');
+      }
+      
+      // Upload file to storage
+      const fileName = `${Date.now()}_${file.name}`;
+      const { data: fileData, error: uploadError } = await supabase.storage
+        .from('chat-files')
+        .upload(`${profileData.business_id}/${fileName}`, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(`${profileData.business_id}/${fileName}`);
+      
+      // Send message with file
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+          content: `Shared a file: ${file.name}`,
+          sender_id: user.id,
+          receiver_id: profileData.business_id,
+          business_id: profileData.business_id,
+          media_url: publicUrl.publicUrl,
+          read_status: false
+        });
+      
+      if (error) throw error;
+      
+      event.target.value = ''; // Reset file input
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Failed to upload file",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
   return (
     <Card className="flex flex-col h-full">
-      <CardContent className="flex-1 flex flex-col p-0">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <CardHeader>
+        <CardTitle>Team Chat</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-y-auto mb-4 space-y-4">
           {loading ? (
-            <div className="text-center text-muted-foreground">Loading messages...</div>
+            <div className="text-center text-gray-500">Loading messages...</div>
           ) : messages.length === 0 ? (
-            <div className="text-center text-muted-foreground">No messages yet</div>
+            <div className="text-center text-gray-500">No messages yet. Start a conversation!</div>
           ) : (
-            messages.map((msg) => (
-              <div 
-                key={msg.id} 
-                className={cn(
-                  "flex items-start gap-2",
-                  msg.sender_id === user?.id ? "flex-row-reverse" : "flex-row"
-                )}
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={msg.sender_name ? undefined : undefined} />
-                  <AvatarFallback>
-                    {(users[msg.sender_id]?.name || 'U').slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+            messages.map((msg) => {
+              const isCurrentUser = msg.sender_id === user?.id;
+              const senderName = users[msg.sender_id]?.name || 'Unknown User';
+              
+              return (
                 <div 
+                  key={msg.id} 
                   className={cn(
-                    "max-w-[80%] rounded-lg p-3",
-                    msg.sender_id === user?.id 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-secondary"
+                    "flex items-start gap-2",
+                    isCurrentUser ? "flex-row-reverse" : "flex-row"
                   )}
                 >
-                  <div className="text-xs mb-1 flex justify-between items-center">
-                    <span>{users[msg.sender_id]?.name || 'Unknown User'}</span>
-                    <span className="text-xs opacity-70">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
+                  </Avatar>
+                  <div 
+                    className={cn(
+                      "max-w-[80%] rounded-lg p-3",
+                      isCurrentUser 
+                        ? "bg-gtalk-primary text-white" 
+                        : "bg-gray-100 text-gray-800"
+                    )}
+                  >
+                    <div className="text-xs mb-1">
+                      {isCurrentUser ? 'You' : senderName}
+                    </div>
+                    
+                    <div>{msg.content}</div>
+                    
+                    {msg.media_url && (
+                      <div className="mt-2">
+                        <a 
+                          href={msg.media_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-500 hover:underline flex items-center gap-1"
+                        >
+                          <Paperclip size={14} />
+                          Download file
+                        </a>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs mt-1 flex justify-end items-center gap-1">
                       {new Date(msg.created_at).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit'
                       })}
-                    </span>
+                      {isCurrentUser && (
+                        msg.read_status ? (
+                          <CheckCheck size={14} className="text-blue-500" />
+                        ) : (
+                          <Check size={14} />
+                        )
+                      )}
+                    </div>
                   </div>
-                  <div className="break-words">
-                    {msg.content.split(/((@\w+))/g).map((part, i) => (
-                      part.startsWith('@') ? (
-                        <span key={i} className="bg-primary/20 rounded px-1">{part}</span>
-                      ) : part
-                    ))}
-                  </div>
-                  {msg.media_url && (
-                    <a 
-                      href={msg.media_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-500 hover:underline flex items-center gap-1 mt-2"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                      View attachment
-                    </a>
-                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
         
-        <div className="border-t p-4 space-y-4">
-          <TeamMentions
-            value={message}
-            onChange={setMessage}
-            onMention={handleMention}
-            teamMembers={teamMembers}
-          />
-          
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Smile className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Picker
-                  data={data}
-                  onEmojiSelect={handleEmojiSelect}
-                  theme="light"
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <Button
-              onClick={handleSend}
-              disabled={!message.trim()}
-              className="ml-auto"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Send
+        <div className="flex gap-2">
+          <label htmlFor="file-upload" className="cursor-pointer">
+            <Button variant="outline" size="icon" type="button" className="h-10">
+              <Paperclip size={18} />
             </Button>
-          </div>
+            <input 
+              id="file-upload" 
+              type="file" 
+              className="hidden" 
+              onChange={handleFileUpload} 
+            />
+          </label>
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="min-h-10 resize-none"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+          />
+          <Button 
+            onClick={handleSend} 
+            className="bg-gtalk-primary hover:bg-gtalk-primary/90"
+            disabled={!message.trim()}
+          >
+            <Send size={18} />
+          </Button>
         </div>
       </CardContent>
     </Card>
