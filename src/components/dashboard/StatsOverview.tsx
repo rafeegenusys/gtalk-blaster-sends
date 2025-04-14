@@ -1,11 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, UserCheck, SendHorizontal, Clock } from "lucide-react";
+import { Calendar, MessageSquare, Bell, UserCheck } from "lucide-react";
 
 export interface StatsData {
-  totalSent: number;
+  monthlyMessages: number;
   activeContacts: number;
-  deliveryRate: number;
+  unreadCount: number;
   scheduled: number;
 }
 
@@ -16,20 +16,20 @@ interface StatsOverviewProps {
 export function StatsOverview({ stats }: StatsOverviewProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
+      <Card className="dark:bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">Messages Sent</CardTitle>
-          <MessageSquare className="w-4 h-4 text-gtalk-primary" />
+          <CardTitle className="text-sm font-medium">Monthly Messages</CardTitle>
+          <Calendar className="w-4 h-4 text-gtalk-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalSent.toLocaleString()}</div>
+          <div className="text-2xl font-bold">{stats.monthlyMessages.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            This month
+            Messages received this month
           </p>
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="dark:bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium">Active Contacts</CardTitle>
           <UserCheck className="w-4 h-4 text-gtalk-primary" />
@@ -42,23 +42,23 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="dark:bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">Delivery Rate</CardTitle>
-          <SendHorizontal className="w-4 h-4 text-gtalk-primary" />
+          <CardTitle className="text-sm font-medium">Unread Messages</CardTitle>
+          <Bell className="w-4 h-4 text-gtalk-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.deliveryRate}%</div>
+          <div className="text-2xl font-bold">{stats.unreadCount}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Last 30 days
+            Pending responses
           </p>
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="dark:bg-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-          <Clock className="w-4 h-4 text-gtalk-primary" />
+          <MessageSquare className="w-4 h-4 text-gtalk-primary" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.scheduled}</div>

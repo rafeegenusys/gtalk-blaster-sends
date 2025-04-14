@@ -22,6 +22,15 @@ const AISettings = () => {
   const [autoResponderTemplate, setAutoResponderTemplate] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  const modelOptions = [
+    { value: "openai/gpt-4", label: "GPT-4 (Premium)", price: "$0.01/1K tokens" },
+    { value: "openai/gpt-3.5-turbo", label: "GPT-3.5 Turbo", price: "$0.002/1K tokens" },
+    { value: "anthropic/claude-2", label: "Claude 2", price: "$0.01/1K tokens" },
+    { value: "google/palm-2", label: "PaLM 2", price: "Free" },
+    { value: "meta-llama/llama-2-70b", label: "Llama 2 70B", price: "Free" },
+    { value: "mistral/mistral-7b", label: "Mistral 7B", price: "Free" },
+  ];
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -160,14 +169,14 @@ const AISettings = () => {
   return (
     <Dashboard title="AI Settings">
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
+        <TabsList className="dark:bg-card">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="auto-responder">Auto Responder</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
         
         <TabsContent value="general" className="space-y-4">
-          <Card>
+          <Card className="dark:bg-card">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Sparkles className="h-5 w-5 mr-2 text-primary" />
@@ -206,15 +215,18 @@ const AISettings = () => {
               <div className="space-y-2">
                 <Label htmlFor="preferred-model">Preferred AI Model</Label>
                 <Select value={preferredModel} onValueChange={setPreferredModel} disabled={isLoading}>
-                  <SelectTrigger id="preferred-model">
+                  <SelectTrigger id="preferred-model" className="dark:bg-background">
                     <SelectValue placeholder="Select a model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</SelectItem>
-                    <SelectItem value="gpt-4">GPT-4 (OpenAI)</SelectItem>
-                    <SelectItem value="anthropic/claude-instant-v1">Claude Instant (Anthropic)</SelectItem>
-                    <SelectItem value="anthropic/claude-2">Claude 2 (Anthropic)</SelectItem>
-                    <SelectItem value="google/palm-2-chat-bison">PaLM 2 (Google)</SelectItem>
+                    {modelOptions.map((model) => (
+                      <SelectItem key={model.value} value={model.value}>
+                        <div className="flex justify-between items-center">
+                          <span>{model.label}</span>
+                          <span className="text-xs text-muted-foreground">{model.price}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">

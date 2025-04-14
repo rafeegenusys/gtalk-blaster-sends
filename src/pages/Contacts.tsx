@@ -46,11 +46,11 @@ const Contacts = () => {
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <Tabs
           defaultValue="contacts"
-          className="w-full"
+          className="w-full dark:text-foreground"
           onValueChange={setActiveTab}
           value={activeTab}
         >
-          <TabsList>
+          <TabsList className="dark:bg-card">
             <TabsTrigger value="contacts">Contacts</TabsTrigger>
             <TabsTrigger value="groups">Groups</TabsTrigger>
           </TabsList>
@@ -58,9 +58,9 @@ const Contacts = () => {
           <div className="mt-6">
             <TabsContent value="contacts" className="m-0">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Contact Management</h2>
+                <h2 className="text-xl font-semibold dark:text-foreground">Contact Management</h2>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleImportClick}>
+                  <Button variant="outline" size="sm" onClick={handleImportClick} className="dark:text-foreground dark:border-border">
                     <Upload className="h-4 w-4 mr-2" />
                     Import
                   </Button>
@@ -75,7 +75,7 @@ const Contacts = () => {
 
             <TabsContent value="groups" className="m-0">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Group Management</h2>
+                <h2 className="text-xl font-semibold dark:text-foreground">Group Management</h2>
                 <Button size="sm" onClick={() => setShowAddGroup(true)}>
                   <UsersRound className="h-4 w-4 mr-2" />
                   Create Group

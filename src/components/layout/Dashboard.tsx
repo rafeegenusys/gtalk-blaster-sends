@@ -27,15 +27,15 @@ export function Dashboard({ children, title = 'Dashboard' }: DashboardProps) {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background dark:bg-background">
       <Sidebar />
       
       <div className="flex flex-col flex-1 ml-[64px] md:ml-64">
-        <header className="flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-border">
+        <header className="flex items-center justify-between h-16 px-4 sm:px-6 bg-card dark:bg-card border-b border-border">
           <h1 className="text-xl font-semibold truncate">{title}</h1>
           
           <div className="flex items-center gap-2 sm:gap-4">
-            <Button variant="outline" size="icon" className="text-gray-500">
+            <Button variant="outline" size="icon" className="text-foreground">
               <Bell size={20} />
             </Button>
             
@@ -54,7 +54,7 @@ export function Dashboard({ children, title = 'Dashboard' }: DashboardProps) {
           </div>
         </header>
         
-        <main className="flex-1 p-3 sm:p-6 overflow-auto">
+        <main className="flex-1 p-3 sm:p-6 overflow-auto bg-background dark:bg-background">
           {children}
         </main>
       </div>

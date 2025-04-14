@@ -1,265 +1,111 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, Send, MessageSquare, Search, Tag, FolderOpen } from "lucide-react";
-import { MessageThread } from "./MessageThread";
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Template } from "@/components/templates/TemplateGrid";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Tag, FolderOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { processTemplate } from "@/utils/templateHelpers";
-
-// Importing the sample templates from TemplateGrid to ensure consistency
+import { Badge } from "@/components/ui/badge";
+import { Template } from "@/components/templates/TemplateGrid";
 import { TemplateCard } from "@/components/templates/TemplateCard";
 
 interface NewMessageProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSend: (phoneNumber: string, message: string) => void;
-  onBack: () => void;
 }
 
-export function NewMessage({ onSend, onBack }: NewMessageProps) {
+export function NewMessage({ open, onOpenChange, onSend }: NewMessageProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [showMessageThread, setShowMessageThread] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  
-  // Import templates from the same source as the Templates page
-  const [templates, setTemplates] = useState<Template[]>([]);
-  
-  // Fetch templates - in a real app, this would be from an API or context
-  useEffect(() => {
-    // Using the same sample data as TemplateGrid for consistency
-    import("@/components/templates/TemplateGrid").then(module => {
-      // Access the sampleTemplates from the imported module
-      if (module && module.sampleTemplates) {
-        setTemplates(module.sampleTemplates);
-      }
-    }).catch(err => {
-      console.error("Failed to load templates:", err);
-    });
-  }, []);
-  
-  // Get unique categories from templates
-  const categories = templates.length > 0 
-    ? ["All", ...Array.from(new Set(templates.map(t => t.category)))] 
-    : ["All"];
-  
-  // Get unique tags from templates
-  const tags = templates.length > 0
-    ? Array.from(new Set(templates.flatMap(t => t.tags)))
-    : [];
-  
-  // Filter templates based on search query, active category, and tag
-  const filteredTemplates = templates.filter(template => {
-    const matchesSearch = 
-      searchQuery === "" || 
-      template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesCategory = 
-      activeCategory === "all" || 
-      template.category.toLowerCase() === activeCategory.toLowerCase();
-    
-    const matchesTag = 
-      !activeTag ||
-      template.tags.includes(activeTag);
-    
-    return matchesSearch && matchesCategory && matchesTag;
-  });
-  
-  const handleContinue = () => {
-    if (phoneNumber.trim()) {
-      setShowMessageThread(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+
+  const handleSend = () => {
+    if (phoneNumber && (message || selectedTemplate)) {
+      onSend(phoneNumber, selectedTemplate?.content || message);
+      setPhoneNumber("");
+      setMessage("");
+      setSelectedTemplate(null);
+      onOpenChange(false);
     }
-  };
-  
-  const handleSendMessage = (text: string) => {
-    onSend(phoneNumber, text);
-  };
-
-  const handleBackToPhoneInput = () => {
-    setShowMessageThread(false);
-  };
-  
-  const handleSelectTemplate = (template: Template) => {
-    setSelectedTemplate(template);
-    setIsTemplatesOpen(false);
-  };
-
-  const handleSelectTag = (tag: string) => {
-    setActiveTag(prevTag => prevTag === tag ? null : tag);
-  };
-
-  // Create a temp contact from the phone number
-  const tempContact = {
-    id: "new",
-    name: "",
-    phone: phoneNumber,
-    lastMessage: "",
-    lastMessageTime: "Just now"
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {!showMessageThread ? (
-        <Card className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto mt-4 sm:mt-8">
-          <CardHeader>
-            <div className="flex items-center">
-              <Button variant="ghost" onClick={onBack} className="mr-2 -ml-2">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <CardTitle>New Message</CardTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col dark:bg-card">
+        <DialogHeader>
+          <DialogTitle>New Message</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-hidden">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Input
+                placeholder="Enter phone number..."
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="dark:bg-background"
+              />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="phone" className="text-sm font-medium block mb-1">
-                  To:
-                </label>
-                <Input
-                  id="phone"
-                  placeholder="Enter phone number..."
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+
+            <Tabs defaultValue="message" className="w-full">
+              <TabsList className="dark:bg-background">
+                <TabsTrigger value="message">Message</TabsTrigger>
+                <TabsTrigger value="templates">Templates</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="message" className="mt-4">
+                <textarea
+                  placeholder="Type your message..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full h-32 p-2 border rounded-md dark:bg-background dark:text-foreground"
                 />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleContinue}
-                  disabled={!phoneNumber.trim()}
-                  className="flex-1"
-                >
-                  Continue
-                </Button>
-                
-                <Dialog open={isTemplatesOpen} onOpenChange={setIsTemplatesOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="flex gap-1">
-                      <MessageSquare className="h-4 w-4" />
-                      Templates
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[680px] max-h-[80vh] overflow-hidden flex flex-col">
-                    <DialogHeader>
-                      <DialogTitle>Select Template</DialogTitle>
-                    </DialogHeader>
-                    
-                    <div className="flex items-center gap-2 my-2 px-1">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search templates..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-8"
-                      />
-                    </div>
-                    
-                    <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
-                      <TabsList className="mb-3 bg-muted/50 overflow-x-auto flex w-full gap-1">
-                        {categories.map((category) => (
-                          <TabsTrigger 
-                            key={category.toLowerCase()} 
-                            value={category.toLowerCase()}
-                            className="text-xs px-3 py-1"
-                          >
-                            {category}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                      
-                      {/* Tags filter */}
-                      <div className="mb-3 px-1">
-                        <div className="flex items-center gap-1 mb-2 text-xs text-muted-foreground">
-                          <Tag className="h-3 w-3" />
-                          <span>Filter by tags:</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {tags.map(tag => (
-                            <Badge 
-                              key={tag} 
-                              variant={activeTag === tag ? "default" : "outline"}
-                              className="cursor-pointer"
-                              onClick={() => handleSelectTag(tag)}
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                          {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags available</span>}
-                        </div>
-                      </div>
-                      
-                      <ScrollArea className="flex-1 pr-4 h-[400px]">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {filteredTemplates.map(template => (
-                            <div 
-                              key={template.id}
-                              className="cursor-pointer"
-                              onClick={() => handleSelectTemplate(template)}
-                            >
-                              <TemplateCard template={template} isCompact={true} />
-                            </div>
-                          ))}
-                          
-                          {filteredTemplates.length === 0 && (
-                            <div className="col-span-full text-center py-8">
-                              <p className="text-muted-foreground">No templates found matching your criteria.</p>
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </Tabs>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              
-              {selectedTemplate && (
-                <div className="pt-2 mt-2 border-t">
-                  <p className="text-sm font-medium mb-1">Selected Template:</p>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-medium text-sm">{selectedTemplate.title}</h4>
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: selectedTemplate.color }}
-                      ></div>
-                    </div>
-                    <p className="text-sm">{selectedTemplate.content}</p>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      You'll be able to customize placeholders in the next step
-                    </div>
-                  </div>
+              </TabsContent>
+
+              <TabsContent value="templates" className="mt-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search templates..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="dark:bg-background"
+                  />
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex flex-col h-full">
-          <MessageThread
-            activeContact={tempContact}
-            messages={[]}
-            onSendMessage={handleSendMessage}
-            onBackClick={handleBackToPhoneInput}
-            showBackButton={true}
-            initialMessage={selectedTemplate?.content}
-          />
+
+                <div className="flex flex-wrap gap-2">
+                  <Badge
+                    variant={activeCategory === "all" ? "default" : "outline"}
+                    onClick={() => setActiveCategory("all")}
+                    className="cursor-pointer"
+                  >
+                    All
+                  </Badge>
+                  {/* Add more category badges */}
+                </div>
+
+                <ScrollArea className="h-[300px]">
+                  {/* Add template grid here */}
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSend} disabled={!phoneNumber || (!message && !selectedTemplate)}>
+            Send Message
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
