@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TeamMentions } from "./TeamMentions";
 
 interface Message {
   id: string;
@@ -20,6 +20,11 @@ interface Message {
   sender_name?: string;
 }
 
+interface TeamMember {
+  id: string;
+  name: string;
+}
+
 export function TeamChat() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -29,6 +34,80 @@ export function TeamChat() {
   const { user } = useAuth();
   const { toast } = useToast();
   
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [showMentions, setShowMentions] = useState(false);
+  const mentionTriggerRef = useRef<HTMLDivElement>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [cursorPosition, setCursorPosition] = useState<number>(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch team members when component mounts
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        const { data: profilesData, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .not('full_name', 'is', null);
+
+        if (error) throw error;
+
+        setTeamMembers(profilesData.map(profile => ({
+          id: profile.id,
+          name: profile.full_name || 'Unknown User'
+        })));
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+      }
+    };
+
+    fetchTeamMembers();
+  }, []);
+
+  // Handle message input including @mentions
+  const handleMessageInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    // Check for @ mentions
+    const lastAtSymbol = value.lastIndexOf('@', e.target.selectionStart);
+    if (lastAtSymbol !== -1) {
+      const textAfterAt = value.slice(lastAtSymbol + 1, e.target.selectionStart);
+      if (textAfterAt.length > 0 && !textAfterAt.includes(' ')) {
+        setMentionSearch(textAfterAt);
+        setShowMentions(true);
+        setCursorPosition(e.target.selectionStart);
+        return;
+      }
+    }
+    
+    setShowMentions(false);
+  };
+
+  // Handle selecting a team member from mentions
+  const handleSelectMention = (member: TeamMember) => {
+    if (!textareaRef.current) return;
+    
+    const beforeMention = message.slice(0, message.lastIndexOf('@', cursorPosition));
+    const afterMention = message.slice(cursorPosition);
+    const newMessage = `${beforeMention}@${member.name} ${afterMention}`;
+    
+    setMessage(newMessage);
+    setShowMentions(false);
+    textareaRef.current.focus();
+  };
+
+  // Check for thread context when component mounts
+  useEffect(() => {
+    const threadContext = sessionStorage.getItem('threadContext');
+    if (threadContext) {
+      const context = JSON.parse(threadContext);
+      // Add context message to the chat
+      handleSend(`Referenced message from ${context.sender}:\n"${context.content}"`);
+      sessionStorage.removeItem('threadContext');
+    }
+  }, []);
+
   // Fetch messages and subscribe to new ones
   useEffect(() => {
     if (!user) return;
@@ -346,7 +425,16 @@ export function TeamChat() {
           <div ref={messagesEndRef} />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 relative">
+          <TeamMentions
+            isOpen={showMentions}
+            onSelect={handleSelectMention}
+            onOpenChange={setShowMentions}
+            searchTerm={mentionSearch}
+            teamMembers={teamMembers}
+            triggerRef={mentionTriggerRef}
+          />
+          
           <label htmlFor="file-upload" className="cursor-pointer">
             <Button variant="outline" size="icon" type="button" className="h-10">
               <Paperclip size={18} />
@@ -358,20 +446,23 @@ export function TeamChat() {
               onChange={handleFileUpload} 
             />
           </label>
+          
           <Textarea
+            ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
+            onChange={handleMessageInput}
+            placeholder="Type your message... Use @ to mention team members"
             className="min-h-10 resize-none"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !showMentions) {
                 e.preventDefault();
                 handleSend();
               }
             }}
           />
+          
           <Button 
-            onClick={handleSend} 
+            onClick={() => handleSend()} 
             className="bg-gtalk-primary hover:bg-gtalk-primary/90"
             disabled={!message.trim()}
           >
