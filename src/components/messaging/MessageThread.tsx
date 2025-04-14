@@ -70,6 +70,7 @@ import { AIAssistant } from "./AIAssistant";
 import { CancelConditions } from "@/components/scheduler/CancelConditions";
 import { Template } from "@/components/templates/TemplateGrid";
 import { TemplateCard } from "@/components/templates/TemplateCard";
+import { OpenInternalThread } from "./OpenInternalThread";
 
 export type Message = {
   id: string;
@@ -317,6 +318,14 @@ export function MessageThread({
                   )}
                   <span>{message.timestamp}</span>
                   {message.type === 'outgoing' && getStatusIcon(message)}
+                  {message.type === 'incoming' && activeContact && (
+                    <OpenInternalThread 
+                      messageId={message.id}
+                      messageContent={message.content}
+                      contactId={activeContact.id}
+                      contactName={activeContact.name || activeContact.phone}
+                    />
+                  )}
                 </div>
               </div>
             </div>

@@ -225,12 +225,12 @@ const Messaging = () => {
     setActiveContact(updatedContact);
   };
 
-  const handleNewMessageSend = (phoneNumber: string, message: string) => {
+  const handleNewMessageSend = (phoneNumber: string, message: string, scheduledTime?: Date, cancelIfResponse?: boolean) => {
     const existingContact = contacts.find(c => c.phone === phoneNumber);
     
     if (existingContact) {
       setActiveContact(existingContact);
-      handleSendMessage(message);
+      handleSendMessage(message, scheduledTime, cancelIfResponse);
     } else {
       const newContact: Contact = {
         id: `new-${Date.now()}`,
@@ -431,7 +431,7 @@ const Messaging = () => {
           </div>
           
           {/* Middle Column - Messages */}
-          <div className="hidden sm:flex col-span-8 md:col-span-5 flex-col h-full border-t border-b">
+          <div className="hidden sm:flex sm:col-span-8 md:col-span-5 flex-col h-full border-t border-b">
             {showNewMessage ? (
               <NewMessage 
                 open={true}
@@ -449,7 +449,7 @@ const Messaging = () => {
           </div>
           
           {/* Right Column - Contact Details */}
-          <div className="hidden md:block col-span-4 h-full border rounded-r-md">
+          <div className="hidden md:block md:col-span-4 h-full border rounded-r-md">
             {activeContact ? (
               <ContactDetails
                 contact={activeContact}
