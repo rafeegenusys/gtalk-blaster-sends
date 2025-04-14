@@ -36,12 +36,13 @@ export interface Message {
   cancelIfResponse?: boolean;
 }
 
+// Update Contact interface to align with ContactList.tsx
 export interface Contact {
   id: string;
   name: string;
   phone: string;
-  lastMessage: string;
-  lastMessageTime: string;
+  lastMessage?: string; // Make this optional to match ContactList
+  lastMessageTime?: string; // Make this optional to match ContactList
   unread?: boolean;
   status?: "online" | "offline" | "away";
   missedCall?: boolean;

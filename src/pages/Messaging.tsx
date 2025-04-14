@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MessageFilters } from "@/components/messaging/MessageFilters";
-import { ContactList, Contact } from "@/components/messaging/ContactList";
-import { MessageThread, Message } from "@/components/messaging/MessageThread";
+import { ContactList, Contact as ContactListContact } from "@/components/messaging/ContactList";
+import { MessageThread, Message, Contact as MessageThreadContact } from "@/components/messaging/MessageThread";
 import { ContactDetails } from "@/components/messaging/ContactDetails";
 import { NewMessage } from "@/components/messaging/NewMessage";
 import { NotificationBell } from "@/components/messaging/NotificationBell";
@@ -19,6 +19,7 @@ import {
 import { PinToChat } from "@/components/messaging/PinToChat";
 import { ActivityItem } from "@/components/dashboard/RecentActivity";
 
+// Making sure we use the MessageThreadContact type to ensure consistency
 interface MessageWithPinning extends Message {
   isPinned?: boolean;
   cancelIfResponse?: boolean;
@@ -26,9 +27,9 @@ interface MessageWithPinning extends Message {
 
 const Messaging = () => {
   const [showNewMessage, setShowNewMessage] = useState(false);
-  const [activeContact, setActiveContact] = useState<Contact | null>(null);
+  const [activeContact, setActiveContact] = useState<MessageThreadContact | null>(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
-  const [contacts, setContacts] = useState<Contact[]>([
+  const [contacts, setContacts] = useState<MessageThreadContact[]>([
     {
       id: "1",
       name: "Jane Smith",
@@ -217,7 +218,7 @@ const Messaging = () => {
     }
   };
 
-  const handleContactUpdate = (updatedContact: Contact) => {
+  const handleContactUpdate = (updatedContact: MessageThreadContact) => {
     setContacts(prev => prev.map(contact => 
       contact.id === updatedContact.id ? updatedContact : contact
     ));
@@ -232,7 +233,7 @@ const Messaging = () => {
       setActiveContact(existingContact);
       handleSendMessage(message);
     } else {
-      const newContact: Contact = {
+      const newContact: MessageThreadContact = {
         id: `new-${Date.now()}`,
         name: "",
         phone: phoneNumber,
@@ -362,7 +363,7 @@ const Messaging = () => {
         setMobileView('conversation');
       }
     } else {
-      const newContact: Contact = {
+      const newContact: MessageThreadContact = {
         id: `new-${Date.now()}`,
         name: activity.contact,
         phone: activity.phone,

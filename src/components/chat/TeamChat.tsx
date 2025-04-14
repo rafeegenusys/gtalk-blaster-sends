@@ -102,8 +102,10 @@ export function TeamChat() {
     const threadContext = sessionStorage.getItem('threadContext');
     if (threadContext) {
       const context = JSON.parse(threadContext);
-      // Add context message to the chat
-      handleSend(`Referenced message from ${context.sender}:\n"${context.content}"`);
+      // Add context message to the chat - FIX: removing argument since handleSend doesn't accept it directly
+      handleSend();
+      // Instead, set the message first and then call handleSend
+      setMessage(`Referenced message from ${context.sender}:\n"${context.content}"`);
       sessionStorage.removeItem('threadContext');
     }
   }, []);
