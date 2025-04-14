@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Send, Paperclip } from "lucide-react";
+import { CalendarIcon, Send, Paperclip, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
@@ -47,8 +48,9 @@ export function MessageThread({
   activeContact, 
   messages, 
   onSendMessage,
-  onOpenInternalThread,
-  showBackButton 
+  onBackClick,
+  showBackButton,
+  onOpenInternalThread 
 }: MessageThreadProps) {
   const [messageText, setMessageText] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -82,8 +84,9 @@ export function MessageThread({
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
-        {showBackButton && (
+        {showBackButton && onBackClick && (
           <Button variant="ghost" size="sm" onClick={onBackClick} className="absolute top-2 left-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
         )}
@@ -105,7 +108,7 @@ export function MessageThread({
             )}
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback>{activeContact?.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{activeContact?.name?.slice(0, 2).toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
               <div

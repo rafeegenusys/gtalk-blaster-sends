@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,21 @@ export function TeamChat() {
           });
           
           setUsers(usersMap);
+        }
+        
+        // After getting profiles, fetch team members for mentions
+        const { data: teamData } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .eq('business_id', profileData.business_id);
+          
+        if (teamData) {
+          const mappedTeamMembers: TeamMember[] = teamData.map(member => ({
+            id: member.id,
+            name: member.full_name || member.email?.split('@')[0] || 'Unknown User',
+            avatar: undefined // Could add avatars in the future
+          }));
+          setTeamMembers(mappedTeamMembers);
         }
         
         setMessages(data || []);
@@ -168,6 +184,11 @@ export function TeamChat() {
       // Cleanup is handled by the returned function from fetchBusinessId
     };
   }, [user, toast]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleMention = (userId: string) => {
     toast({
