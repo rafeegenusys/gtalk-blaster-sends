@@ -86,9 +86,13 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          is_internal: boolean | null
           media_url: string | null
+          mentions: string[] | null
           read_status: boolean | null
           receiver_id: string | null
+          reference_contact_id: string | null
+          reference_message_id: string | null
           sender_id: string | null
         }
         Insert: {
@@ -96,9 +100,13 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          is_internal?: boolean | null
           media_url?: string | null
+          mentions?: string[] | null
           read_status?: boolean | null
           receiver_id?: string | null
+          reference_contact_id?: string | null
+          reference_message_id?: string | null
           sender_id?: string | null
         }
         Update: {
@@ -106,9 +114,13 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          is_internal?: boolean | null
           media_url?: string | null
+          mentions?: string[] | null
           read_status?: boolean | null
           receiver_id?: string | null
+          reference_contact_id?: string | null
+          reference_message_id?: string | null
           sender_id?: string | null
         }
         Relationships: [
