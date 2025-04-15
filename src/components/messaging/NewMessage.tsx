@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Clock, Users, User, Smile, Search, Tag } from "lucide-react";
+import { ChevronLeft, Clock, Users, User, Smile, Search, Tag, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +19,7 @@ import Picker from '@emoji-mart/react';
 import { ContactSelector } from "./components/ContactSelector";
 import { GroupSelector } from "./components/GroupSelector";
 import { MessageScheduler } from "./components/MessageScheduler";
+import { AttachmentButton } from "./components/AttachmentButton";
 
 interface Contact {
   id: string;
@@ -59,8 +61,14 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
   const [filteredGroups, setFilteredGroups] = useState<Group[]>([]);
   const [templates, setTemplates] = useState<Template[]>(sampleTemplates);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [showContactsPanel, setShowContactsPanel] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Character count and SMS segments calculation
+  const charCount = message.length;
+  const smsSegments = Math.ceil(charCount / 160) || 1;
 
   // Fetch contacts and groups
   useEffect(() => {
@@ -198,8 +206,24 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
     setMessage(suggestion);
   };
 
+  const handleAddAttachment = (files: File[]) => {
+    setAttachments(prev => [...prev, ...files]);
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSend = () => {
     if (phoneNumber && (message || selectedTemplate)) {
+      // In a real implementation, you would handle attachments upload here
+      if (attachments.length > 0) {
+        toast({
+          title: "Attachments included",
+          description: `Your message will include ${attachments.length} attachment(s).`,
+        });
+      }
+      
       if (showScheduler && scheduledDate) {
         // Parse time from HH:MM format
         const [hours, minutes] = scheduledTime.split(':').map(Number);
@@ -218,6 +242,7 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
       setShowScheduler(false);
       setScheduledDate(undefined);
       setCancelIfResponse(false);
+      setAttachments([]);
       onOpenChange(false);
     }
   };
@@ -240,51 +265,67 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Enter phone number..."
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="dark:bg-background flex-1"
-                />
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => setShowContactSelector(true)}
-                  title="Select contact"
+          <div className="space-y-4 py-2">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Recipients</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 p-1"
+                  onClick={() => setShowContactsPanel(!showContactsPanel)}
                 >
-                  <User size={16} />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => setShowGroupSelector(true)}
-                  title="Select group"
-                >
-                  <Users size={16} />
+                  {showContactsPanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </Button>
               </div>
               
-              {showContactSelector && (
-                <ContactSelector
-                  contacts={filteredContacts}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onSelectContact={handleSelectContact}
-                  onClose={() => setShowContactSelector(false)}
-                />
-              )}
-              
-              {showGroupSelector && (
-                <GroupSelector
-                  groups={filteredGroups}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onSelectGroup={handleSelectGroup}
-                  onClose={() => setShowGroupSelector(false)}
-                />
+              {showContactsPanel && (
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Enter phone number..."
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="dark:bg-background flex-1"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setShowContactSelector(true)}
+                      title="Select contact"
+                    >
+                      <User size={16} />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setShowGroupSelector(true)}
+                      title="Select group"
+                    >
+                      <Users size={16} />
+                    </Button>
+                  </div>
+                  
+                  {showContactSelector && (
+                    <ContactSelector
+                      contacts={filteredContacts}
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      onSelectContact={handleSelectContact}
+                      onClose={() => setShowContactSelector(false)}
+                    />
+                  )}
+                  
+                  {showGroupSelector && (
+                    <GroupSelector
+                      groups={filteredGroups}
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      onSelectGroup={handleSelectGroup}
+                      onClose={() => setShowGroupSelector(false)}
+                    />
+                  )}
+                </div>
               )}
             </div>
 
@@ -296,18 +337,30 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
               </TabsList>
 
               <TabsContent value="message" className="mt-4 space-y-4">
-                <textarea
-                  placeholder="Type your message..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="w-full h-32 p-2 border rounded-md dark:bg-background dark:text-foreground"
-                />
+                <div className="space-y-1">
+                  <textarea
+                    placeholder="Type your message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="w-full h-32 p-2 border rounded-md dark:bg-background dark:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="text-xs text-right text-muted-foreground">
+                    {charCount} characters | {smsSegments} SMS segment{smsSegments !== 1 ? 's' : ''}
+                  </div>
+                </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AttachmentButton
+                    onAttach={handleAddAttachment}
+                    attachments={attachments}
+                    onRemove={handleRemoveAttachment}
+                  />
+                  
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm">
-                        <Smile className="h-4 w-4" />
+                        <Smile className="h-4 w-4 mr-2" />
+                        Emoji
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">

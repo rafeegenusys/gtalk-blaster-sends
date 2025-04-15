@@ -47,7 +47,12 @@ export function OpenInternalThread({
       if (profileError) throw profileError;
       
       if (!profileData || !profileData.business_id) {
-        throw new Error("User profile or business ID not found");
+        toast({
+          title: "Profile setup required",
+          description: "Your user profile or business ID is missing. Please contact support.",
+          variant: "destructive"
+        });
+        return;
       }
       
       // Create internal thread message

@@ -178,7 +178,7 @@ export function MessageComposer() {
                 Message
               </label>
               <span className="text-xs text-muted-foreground">
-                {charCount} chars | {smsSegments} SMS
+                {charCount} chars | {smsSegments} SMS {smsSegments !== 1 ? 'segments' : 'segment'}
               </span>
             </div>
             
@@ -193,15 +193,15 @@ export function MessageComposer() {
           
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" title="Add image">
                 <Image size={18} />
               </Button>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" title="Add attachment">
                 <Paperclip size={18} />
               </Button>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" title="Add emoji">
                     <Smile size={18} />
                   </Button>
                 </PopoverTrigger>
@@ -213,7 +213,7 @@ export function MessageComposer() {
                   />
                 </PopoverContent>
               </Popover>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" title="Schedule message">
                 <Calendar size={18} />
               </Button>
             </div>

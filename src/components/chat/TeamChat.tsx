@@ -54,7 +54,18 @@ export function TeamChat() {
           .maybeSingle();
         
         // If no business ID found, create a demo one for testing
-        const currentBusinessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
+        const currentBusinessId = profileData?.business_id || null;
+        
+        if (!currentBusinessId) {
+          toast({
+            title: "Profile setup required",
+            description: "Your business profile is not set up correctly. Please contact support.",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        
         setBusinessId(currentBusinessId);
         
         // Get messages
@@ -126,7 +137,9 @@ export function TeamChat() {
           .eq('id', user.id)
           .maybeSingle();
         
-        const currentBusinessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
+        const currentBusinessId = profileData?.business_id;
+        if (!currentBusinessId) return;
+        
         setBusinessId(currentBusinessId);
         
         const channel = supabase
@@ -199,16 +212,19 @@ export function TeamChat() {
   };
   
   const handleSendMessage = async (messageText: string) => {
-    if (!user) return;
-    
+    if (!user || !businessId) {
+      toast({
+        title: "Cannot send message",
+        description: "Your profile or business isn't properly set up. Please contact support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Extract mentions from message
       const mentionRegex = /@(\w+)/g;
       const mentions = [...messageText.matchAll(mentionRegex)].map(match => match[1]);
-      
-      if (!businessId) {
-        throw new Error("Business ID not found");
-      }
       
       // Send message
       const { error } = await supabase
