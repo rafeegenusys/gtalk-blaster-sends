@@ -42,12 +42,13 @@ export function OpenInternalThread({
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
-        .maybeSingle(); // Use maybeSingle to handle nulls
+        .maybeSingle(); 
         
       if (profileError) throw profileError;
       
-      // If no profile or business ID, create mock data for demo purposes
-      const businessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
+      if (!profileData || !profileData.business_id) {
+        throw new Error("User profile or business ID not found");
+      }
       
       // Create internal thread message
       const { error: messageError } = await supabase
@@ -55,7 +56,7 @@ export function OpenInternalThread({
         .insert({
           content: `Thread started about customer message: "${messageContent}"`,
           sender_id: user.id,
-          business_id: businessId,
+          business_id: profileData.business_id,
           reference_message_id: messageId,
           reference_contact_id: contactId,
           is_internal: true
