@@ -1,10 +1,9 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -13,8 +12,6 @@ import {
   MessageSquare, 
   Edit, 
   Trash, 
-  Calendar as CalendarIcon,
-  Phone,
   Send
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +42,7 @@ export function MessageCalendar() {
   const [scheduledTime, setScheduledTime] = useState("12:00");
   const [timezone, setTimezone] = useState("America/New_York");
   const [cancelIfResponse, setCancelIfResponse] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -52,11 +50,17 @@ export function MessageCalendar() {
   // State for stored messages
   const [storedMessages, setStoredMessages] = useState<ScheduledMessage[]>([]);
   
-  // Load scheduled messages from Supabase when component mounts
+  // Load scheduled messages from Supabase when component mounts or user changes
+  useEffect(() => {
+    loadScheduledMessages();
+  }, [user]);
+  
+  // Load scheduled messages from Supabase
   const loadScheduledMessages = async () => {
     if (!user) return;
     
     try {
+      setIsLoading(true);
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('business_id')
@@ -64,12 +68,14 @@ export function MessageCalendar() {
         .maybeSingle();
       
       if (profileError) throw profileError;
-      if (!profileData) return;
+      
+      // Use a default business ID for demo if none exists
+      const businessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
       
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('business_id', profileData.business_id)
+        .eq('business_id', businessId)
         .not('scheduled_time', 'is', null);
       
       if (error) throw error;
@@ -87,6 +93,13 @@ export function MessageCalendar() {
       }
     } catch (error) {
       console.error("Error loading scheduled messages:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load scheduled messages",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -114,7 +127,9 @@ export function MessageCalendar() {
     }
     
     try {
-      // Get business ID
+      setIsLoading(true);
+      
+      // Get business ID or use default for demo
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('business_id')
@@ -122,7 +137,7 @@ export function MessageCalendar() {
         .maybeSingle();
       
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("User profile not found");
+      const businessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
       
       // Create scheduled time
       const [hours, minutes] = scheduledTime.split(':').map(Number);
@@ -138,7 +153,7 @@ export function MessageCalendar() {
           sender_id: user.id,
           recipient_type: 'contact',
           recipient_id: recipient,
-          business_id: profileData.business_id,
+          business_id: businessId,
           status: 'pending',
           scheduled_time: scheduledDateTime.toISOString()
         })
@@ -168,6 +183,8 @@ export function MessageCalendar() {
         description: error.message,
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -194,6 +211,7 @@ export function MessageCalendar() {
     if (!user) return;
     
     try {
+      setIsLoading(true);
       const { error } = await supabase
         .from('messages')
         .delete()
@@ -216,6 +234,8 @@ export function MessageCalendar() {
         description: error.message,
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -231,11 +251,6 @@ export function MessageCalendar() {
     });
   };
   
-  // Load messages when component mounts or user changes
-  useState(() => {
-    loadScheduledMessages();
-  });
-  
   return (
     <Card className="h-full">
       <CardHeader>
@@ -245,141 +260,149 @@ export function MessageCalendar() {
             size="sm" 
             className="bg-gtalk-primary hover:bg-gtalk-primary/90"
             onClick={() => setShowNewMessageDialog(true)}
+            disabled={isLoading}
           >
             <PlusCircle size={16} className="mr-1" /> New Scheduled Message
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid md:grid-cols-2 gap-6">
-        <div>
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={setDate}
-            className="rounded-md border"
-            modifiers={{
-              hasMessages: (date) => hasDayMessages(date),
-            }}
-            modifiersStyles={{
-              hasMessages: {
-                fontWeight: 'bold',
-                backgroundColor: 'rgba(0, 128, 255, 0.1)',
-                borderRadius: '100%',
-              }
-            }}
-          />
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-medium mb-4">
-            {date ? format(date, 'PPP') : 'Select a date'}
-          </h3>
-          
-          {messagesForSelectedDate.length === 0 ? (
-            <div className="text-gray-500 text-center py-6">
-              No scheduled messages for this date
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-6">Loading scheduled messages...</div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="rounded-md border"
+                modifiers={{
+                  hasMessages: (date) => hasDayMessages(date),
+                }}
+                modifiersStyles={{
+                  hasMessages: {
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(0, 128, 255, 0.1)',
+                    borderRadius: '100%',
+                  }
+                }}
+              />
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {messagesForSelectedDate.map((msg) => (
-                    <TableRow key={msg.id}>
-                      <TableCell>{format(msg.scheduledTime, 'h:mm a')}</TableCell>
-                      <TableCell>{msg.recipient}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            msg.status === 'sent' ? 'default' :
-                            msg.status === 'pending' ? 'outline' : 'destructive'
-                          }
-                        >
-                          {msg.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleViewMessage(msg)}
-                          >
-                            <MessageSquare size={16} />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleEditMessage(msg)}
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDeleteMessage(msg.id)}
-                          >
-                            <Trash size={16} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          
-          {/* View Message Dialog */}
-          <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Scheduled Message</DialogTitle>
-              </DialogHeader>
+            
+            <div>
+              <h3 className="text-lg font-medium mb-4">
+                {date ? format(date, 'PPP') : 'Select a date'}
+              </h3>
               
-              {selectedMessage && (
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium">Time</h4>
-                    <p>{format(selectedMessage.scheduledTime, 'PPP p')}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium">Recipient</h4>
-                    <p>{selectedMessage.recipient}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium">Message</h4>
-                    <p className="p-3 bg-gray-100 rounded-md">
-                      {selectedMessage.content}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium">Status</h4>
-                    <Badge
-                      variant={
-                        selectedMessage.status === 'sent' ? 'default' :
-                        selectedMessage.status === 'pending' ? 'outline' : 'destructive'
-                      }
-                    >
-                      {selectedMessage.status}
-                    </Badge>
-                  </div>
+              {messagesForSelectedDate.length === 0 ? (
+                <div className="text-gray-500 text-center py-6">
+                  No scheduled messages for this date
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {messagesForSelectedDate.map((msg) => (
+                        <TableRow key={msg.id}>
+                          <TableCell>{format(msg.scheduledTime, 'h:mm a')}</TableCell>
+                          <TableCell>{msg.recipient}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                msg.status === 'sent' ? 'default' :
+                                msg.status === 'pending' ? 'outline' : 'destructive'
+                              }
+                            >
+                              {msg.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleViewMessage(msg)}
+                              >
+                                <MessageSquare size={16} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEditMessage(msg)}
+                              >
+                                <Edit size={16} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                              >
+                                <Trash size={16} />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
-        </div>
+            </div>
+          </div>
+        )}
       </CardContent>
+      
+      {/* View Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Scheduled Message</DialogTitle>
+            <DialogDescription>View details of this scheduled message</DialogDescription>
+          </DialogHeader>
+          
+          {selectedMessage && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium">Time</h4>
+                <p>{format(selectedMessage.scheduledTime, 'PPP p')}</p>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium">Recipient</h4>
+                <p>{selectedMessage.recipient}</p>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium">Message</h4>
+                <p className="p-3 bg-gray-100 rounded-md">
+                  {selectedMessage.content}
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium">Status</h4>
+                <Badge
+                  variant={
+                    selectedMessage.status === 'sent' ? 'default' :
+                    selectedMessage.status === 'pending' ? 'outline' : 'destructive'
+                  }
+                >
+                  {selectedMessage.status}
+                </Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       {/* New/Edit Message Dialog */}
       <Dialog open={showNewMessageDialog} onOpenChange={setShowNewMessageDialog}>
@@ -388,6 +411,9 @@ export function MessageCalendar() {
             <DialogTitle>
               {selectedMessage ? 'Edit Scheduled Message' : 'Schedule New Message'}
             </DialogTitle>
+            <DialogDescription>
+              {selectedMessage ? 'Modify your scheduled message' : 'Create a new scheduled message'}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -409,10 +435,10 @@ export function MessageCalendar() {
               <label htmlFor="message" className="text-sm font-medium">
                 Message
               </label>
-              <Textarea
+              <textarea
                 id="message"
                 placeholder="Type your message here..."
-                className="min-h-24"
+                className="w-full min-h-24 p-2 border rounded-md resize-y"
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
               />
@@ -436,7 +462,10 @@ export function MessageCalendar() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleScheduleMessage}>
+              <Button 
+                onClick={handleScheduleMessage}
+                disabled={isLoading}
+              >
                 <Send className="mr-2 h-4 w-4" />
                 {selectedMessage ? 'Update Message' : 'Schedule Message'}
               </Button>

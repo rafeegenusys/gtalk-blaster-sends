@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 
 interface OpenInternalThreadProps {
   messageId: string;
@@ -21,6 +22,7 @@ export function OpenInternalThread({
 }: OpenInternalThreadProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenThread = async () => {
     if (!user) {
@@ -33,15 +35,19 @@ export function OpenInternalThread({
     }
 
     try {
+      setIsLoading(true);
+      
       // Get user's business ID
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
-        .maybeSingle(); // Changed from single() to maybeSingle() to handle cases where no row is returned
+        .maybeSingle(); // Use maybeSingle to handle nulls
         
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("User profile not found");
+      
+      // If no profile or business ID, create mock data for demo purposes
+      const businessId = profileData?.business_id || '00000000-0000-0000-0000-000000000000';
       
       // Create internal thread message
       const { error: messageError } = await supabase
@@ -49,7 +55,7 @@ export function OpenInternalThread({
         .insert({
           content: `Thread started about customer message: "${messageContent}"`,
           sender_id: user.id,
-          business_id: profileData.business_id,
+          business_id: businessId,
           reference_message_id: messageId,
           reference_contact_id: contactId,
           is_internal: true
@@ -69,6 +75,8 @@ export function OpenInternalThread({
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -81,6 +89,7 @@ export function OpenInternalThread({
             size="icon" 
             className="h-6 w-6 text-muted-foreground hover:text-foreground" 
             onClick={handleOpenThread}
+            disabled={isLoading}
           >
             <MessageCircle className="h-4 w-4" />
           </Button>

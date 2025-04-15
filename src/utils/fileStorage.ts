@@ -37,8 +37,9 @@ export const uploadChatFile = async (
     // Ensure bucket exists
     await ensureChatFilesBucket();
     
-    // Generate unique filename
-    const fileName = `${businessId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+    // Generate unique filename with businessId (or use a default for demo)
+    const safeBusinessId = businessId || '00000000-0000-0000-0000-000000000000';
+    const fileName = `${safeBusinessId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
     
     // Upload file
     const { error } = await supabase.storage

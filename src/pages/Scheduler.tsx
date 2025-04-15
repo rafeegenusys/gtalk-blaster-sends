@@ -4,33 +4,33 @@ import { Dashboard } from "@/components/layout/Dashboard";
 import { MessageCalendar } from "@/components/scheduler/MessageCalendar";
 import { MessageComposer } from "@/components/messaging/MessageComposer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 const Scheduler = () => {
   const [activeTab, setActiveTab] = useState("calendar");
 
   return (
     <Dashboard title="Scheduler">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="calendar">Calendar View</TabsTrigger>
-          <TabsTrigger value="composer">Quick Compose</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="calendar" className="m-0">
-          <div className="grid gap-6">
+      <div className="container mx-auto py-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+            <TabsTrigger value="composer">Quick Compose</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="calendar" className="m-0">
             <MessageCalendar />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="composer" className="m-0">
-          <div className="grid gap-6">
+          </TabsContent>
+          
+          <TabsContent value="composer" className="m-0">
             <Card>
-              <MessageComposer />
+              <CardContent className="p-6">
+                <MessageComposer />
+              </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      </div>
     </Dashboard>
   );
 };
