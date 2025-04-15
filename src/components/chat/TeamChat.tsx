@@ -1,9 +1,9 @@
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Paperclip, Image, CheckCheck, Check, Smile } from "lucide-react";
+import { Send, Paperclip, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,15 +56,20 @@ export function TeamChat() {
           .from('profiles')
           .select('business_id')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
         
-        if (!profileData?.business_id) return;
+        if (!profileData?.business_id) {
+          setMessages([]);
+          setLoading(false);
+          return;
+        }
         
         // Get messages
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('business_id', profileData.business_id)
+          .eq('is_internal', true)
           .order('created_at', { ascending: true });
         
         if (error) throw error;
@@ -120,74 +125,75 @@ export function TeamChat() {
     fetchMessages();
     
     // Subscribe to new messages
-    let businessId: string | null = null;
-    
-    const fetchBusinessId = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('business_id')
-        .eq('id', user.id)
-        .single();
+    const setupSubscription = async () => {
+      let businessId: string | null = null;
       
-      businessId = data?.business_id || null;
-      
-      if (!businessId) return;
-      
-      const channel = supabase
-        .channel('chat-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `business_id=eq.${businessId}`,
-          },
-          async (payload) => {
-            const newMessage = payload.new as Message;
-            
-            // Fetch sender name if not in users map
-            if (!users[newMessage.sender_id]) {
-              const { data } = await supabase
-                .from('profiles')
-                .select('full_name, email')
-                .eq('id', newMessage.sender_id)
-                .single();
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('business_id')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        businessId = data?.business_id || null;
+        
+        if (!businessId) return;
+        
+        const channel = supabase
+          .channel('chat-messages')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `business_id=eq.${businessId} AND is_internal=eq.true`,
+            },
+            async (payload) => {
+              const newMessage = payload.new as Message;
               
-              if (data) {
-                setUsers(prev => ({
-                  ...prev,
-                  [newMessage.sender_id]: {
-                    name: data.full_name || data.email?.split('@')[0] || 'Unknown User'
-                  }
-                }));
+              // Fetch sender name if not in users map
+              if (!users[newMessage.sender_id]) {
+                const { data } = await supabase
+                  .from('profiles')
+                  .select('full_name, email')
+                  .eq('id', newMessage.sender_id)
+                  .maybeSingle();
+                
+                if (data) {
+                  setUsers(prev => ({
+                    ...prev,
+                    [newMessage.sender_id]: {
+                      name: data.full_name || data.email?.split('@')[0] || 'Unknown User'
+                    }
+                  }));
+                }
+              }
+              
+              // Add message to state
+              setMessages(prev => [...prev, newMessage]);
+              
+              // Mark as read if from another user
+              if (newMessage.sender_id !== user.id) {
+                await supabase
+                  .from('chat_messages')
+                  .update({ read_status: true })
+                  .eq('id', newMessage.id);
               }
             }
-            
-            // Add message to state
-            setMessages(prev => [...prev, newMessage]);
-            
-            // Mark as read if from another user
-            if (newMessage.sender_id !== user.id) {
-              await supabase
-                .from('chat_messages')
-                .update({ read_status: true })
-                .eq('id', newMessage.id);
-            }
-          }
-        )
-        .subscribe();
-      
-      return () => {
-        supabase.removeChannel(channel);
-      };
+          )
+          .subscribe();
+        
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      } catch (error) {
+        console.error('Error setting up chat subscription:', error);
+      }
     };
     
-    fetchBusinessId();
+    setupSubscription();
     
-    return () => {
-      // Cleanup is handled by the returned function from fetchBusinessId
-    };
   }, [user, toast]);
   
   // Auto-scroll to bottom when messages change
@@ -219,7 +225,7 @@ export function TeamChat() {
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (profileError) throw profileError;
       if (!profileData?.business_id) {
@@ -261,7 +267,7 @@ export function TeamChat() {
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (profileError) throw profileError;
       if (!profileData?.business_id) {
@@ -315,131 +321,126 @@ export function TeamChat() {
   };
   
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle>Team Chat</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {loading ? (
-            <div className="text-center text-muted-foreground">Loading messages...</div>
-          ) : messages.length === 0 ? (
-            <div className="text-center text-muted-foreground">No messages yet. Start a conversation!</div>
-          ) : (
-            messages.map((msg) => {
-              const isCurrentUser = msg.sender_id === user?.id;
-              const senderName = users[msg.sender_id]?.name || 'Unknown User';
-              
-              return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {loading ? (
+          <div className="text-center text-muted-foreground">Loading messages...</div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-muted-foreground">No messages yet. Start a conversation!</div>
+        ) : (
+          messages.map((msg) => {
+            const isCurrentUser = msg.sender_id === user?.id;
+            const senderName = users[msg.sender_id]?.name || 'Unknown User';
+            
+            return (
+              <div 
+                key={msg.id} 
+                className={cn(
+                  "flex items-start gap-2",
+                  isCurrentUser ? "flex-row-reverse" : "flex-row"
+                )}
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage />
+                  <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
+                </Avatar>
                 <div 
-                  key={msg.id} 
                   className={cn(
-                    "flex items-start gap-2",
-                    isCurrentUser ? "flex-row-reverse" : "flex-row"
+                    "max-w-[80%] rounded-lg p-3",
+                    isCurrentUser 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-secondary"
                   )}
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage />
-                    <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
-                  </Avatar>
-                  <div 
-                    className={cn(
-                      "max-w-[80%] rounded-lg p-3",
-                      isCurrentUser 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-secondary"
-                    )}
-                  >
-                    <div className="text-xs mb-1 flex justify-between items-center">
-                      <span>{senderName}</span>
-                      <span className="text-xs opacity-70">
-                        {new Date(msg.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    
-                    <div className="break-words">
-                      {msg.content.split(/((@\w+))/g).map((part, i) => 
-                        part.startsWith('@') ? (
-                          <span key={i} className="bg-primary/20 rounded px-1">{part}</span>
-                        ) : part
-                      )}
-                    </div>
-                    
-                    {msg.media_url && (
-                      <a 
-                        href={msg.media_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-500 hover:underline flex items-center gap-1 mt-2"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                        View attachment
-                      </a>
-                    )}
-                    
-                    {msg.reference_message_id && (
-                      <div className="mt-2 text-xs italic border-l-2 pl-2 border-primary/50">
-                        Thread related to customer message
-                      </div>
+                  <div className="text-xs mb-1 flex justify-between items-center">
+                    <span>{senderName}</span>
+                    <span className="text-xs opacity-70">
+                      {new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  
+                  <div className="break-words">
+                    {msg.content.split(/((@\w+))/g).map((part, i) => 
+                      part.startsWith('@') ? (
+                        <span key={i} className="bg-primary/20 rounded px-1">{part}</span>
+                      ) : part
                     )}
                   </div>
+                  
+                  {msg.media_url && (
+                    <a 
+                      href={msg.media_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-500 hover:underline flex items-center gap-1 mt-2"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      View attachment
+                    </a>
+                  )}
+                  
+                  {msg.reference_message_id && (
+                    <div className="mt-2 text-xs italic border-l-2 pl-2 border-primary/50">
+                      Thread related to customer message
+                    </div>
+                  )}
                 </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      <div className="border-t p-4 space-y-4">
+        <TeamMentions 
+          value={message}
+          onChange={setMessage}
+          onMention={handleMention}
+          teamMembers={teamMembers}
+        />
         
-        <div className="border-t p-4 space-y-4">
-          <TeamMentions 
-            value={message}
-            onChange={setMessage}
-            onMention={handleMention}
-            teamMembers={teamMembers}
-          />
-          
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Smile className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Picker 
-                  data={data} 
-                  onEmojiSelect={handleEmojiSelect}
-                  theme="light"
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <label htmlFor="file-upload-team" className="cursor-pointer">
-              <Button variant="ghost" size="icon" type="button" className="h-8 w-8">
-                <Paperclip className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Smile className="h-4 w-4" />
               </Button>
-              <input 
-                id="file-upload-team" 
-                type="file" 
-                className="hidden" 
-                onChange={handleFileUpload} 
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Picker 
+                data={data} 
+                onEmojiSelect={handleEmojiSelect}
+                theme="light"
               />
-            </label>
-            
-            <Button 
-              onClick={handleSend} 
-              disabled={!message.trim()}
-              className="ml-auto"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Send
+            </PopoverContent>
+          </Popover>
+          
+          <label htmlFor="file-upload-team" className="cursor-pointer">
+            <Button variant="ghost" size="icon" type="button" className="h-8 w-8">
+              <Paperclip className="h-4 w-4" />
             </Button>
-          </div>
+            <input 
+              id="file-upload-team" 
+              type="file" 
+              className="hidden" 
+              onChange={handleFileUpload} 
+            />
+          </label>
+          
+          <Button 
+            onClick={handleSend} 
+            disabled={!message.trim()}
+            className="ml-auto"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Send
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

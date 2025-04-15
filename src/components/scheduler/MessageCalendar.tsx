@@ -3,11 +3,25 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { PlusCircle, MessageSquare, Edit, Trash } from "lucide-react";
+import { 
+  PlusCircle, 
+  MessageSquare, 
+  Edit, 
+  Trash, 
+  Calendar as CalendarIcon,
+  Phone,
+  Send
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { MessageScheduler } from "../messaging/components/MessageScheduler";
 
 // Types for scheduled messages
 interface ScheduledMessage {
@@ -18,31 +32,66 @@ interface ScheduledMessage {
   status: 'pending' | 'sent' | 'failed';
 }
 
-// Mock data - would be replaced with real data from your database
-const mockScheduledMessages: ScheduledMessage[] = [
-  {
-    id: '1',
-    content: 'Follow-up on our last conversation',
-    scheduledTime: new Date(2025, 3, 15, 10, 0),
-    recipient: '+1234567890',
-    status: 'pending'
-  },
-  {
-    id: '2',
-    content: 'Reminder about your appointment',
-    scheduledTime: new Date(2025, 3, 15, 14, 30),
-    recipient: '+0987654321',
-    status: 'pending'
-  }
-];
-
 export function MessageCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedMessage, setSelectedMessage] = useState<ScheduledMessage | null>(null);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
+  
+  // Form state
+  const [recipient, setRecipient] = useState("");
+  const [messageContent, setMessageContent] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(new Date());
+  const [scheduledTime, setScheduledTime] = useState("12:00");
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [cancelIfResponse, setCancelIfResponse] = useState(false);
+  
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // State for stored messages
+  const [storedMessages, setStoredMessages] = useState<ScheduledMessage[]>([]);
+  
+  // Load scheduled messages from Supabase when component mounts
+  const loadScheduledMessages = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('business_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (profileError) throw profileError;
+      if (!profileData) return;
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('business_id', profileData.business_id)
+        .not('scheduled_time', 'is', null);
+      
+      if (error) throw error;
+      
+      if (data) {
+        const formattedMessages: ScheduledMessage[] = data.map(msg => ({
+          id: msg.id,
+          content: msg.content || "",
+          scheduledTime: new Date(msg.scheduled_time),
+          recipient: msg.recipient_id || "",
+          status: msg.status as 'pending' | 'sent' | 'failed'
+        }));
+        
+        setStoredMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error("Error loading scheduled messages:", error);
+    }
+  };
   
   // Filter messages for the selected date
-  const messagesForSelectedDate = mockScheduledMessages.filter(msg => {
+  const messagesForSelectedDate = storedMessages.filter(msg => {
     if (!date) return false;
     
     const msgDate = new Date(msg.scheduledTime);
@@ -53,15 +102,126 @@ export function MessageCalendar() {
     );
   });
   
+  // Function to schedule a new message
+  const handleScheduleMessage = async () => {
+    if (!user || !recipient || !messageContent || !scheduledDate) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Get business ID
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('business_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (profileError) throw profileError;
+      if (!profileData) throw new Error("User profile not found");
+      
+      // Create scheduled time
+      const [hours, minutes] = scheduledTime.split(':').map(Number);
+      const scheduledDateTime = new Date(scheduledDate);
+      scheduledDateTime.setHours(hours, minutes);
+      
+      // Insert the message
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          type: 'SMS',
+          content: messageContent,
+          sender_id: user.id,
+          recipient_type: 'contact',
+          recipient_id: recipient,
+          business_id: profileData.business_id,
+          status: 'pending',
+          scheduled_time: scheduledDateTime.toISOString()
+        })
+        .select();
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Message scheduled",
+        description: `Message scheduled for ${format(scheduledDateTime, 'PPP p')}`
+      });
+      
+      // Close dialog and reset form
+      setShowNewMessageDialog(false);
+      setRecipient("");
+      setMessageContent("");
+      setScheduledDate(new Date());
+      setScheduledTime("12:00");
+      
+      // Reload messages
+      loadScheduledMessages();
+      
+    } catch (error: any) {
+      console.error("Error scheduling message:", error);
+      toast({
+        title: "Failed to schedule message",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Function to handle viewing a message
   const handleViewMessage = (message: ScheduledMessage) => {
     setSelectedMessage(message);
     setShowMessageDialog(true);
   };
   
+  // Function to handle editing a message
+  const handleEditMessage = (message: ScheduledMessage) => {
+    setSelectedMessage(message);
+    setRecipient(message.recipient);
+    setMessageContent(message.content);
+    setScheduledDate(message.scheduledTime);
+    setScheduledTime(
+      format(message.scheduledTime, 'HH:mm')
+    );
+    setShowNewMessageDialog(true);
+  };
+  
+  // Function to handle deleting a message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Message deleted",
+        description: "The scheduled message has been deleted."
+      });
+      
+      // Remove from local state
+      setStoredMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+    } catch (error: any) {
+      console.error("Error deleting message:", error);
+      toast({
+        title: "Failed to delete message",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Function to determine if a day has scheduled messages
   const hasDayMessages = (day: Date) => {
-    return mockScheduledMessages.some(msg => {
+    return storedMessages.some(msg => {
       const msgDate = new Date(msg.scheduledTime);
       return (
         msgDate.getDate() === day.getDate() &&
@@ -71,12 +231,21 @@ export function MessageCalendar() {
     });
   };
   
+  // Load messages when component mounts or user changes
+  useState(() => {
+    loadScheduledMessages();
+  });
+  
   return (
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>Message Calendar</span>
-          <Button size="sm" className="bg-gtalk-primary hover:bg-gtalk-primary/90">
+          <Button 
+            size="sm" 
+            className="bg-gtalk-primary hover:bg-gtalk-primary/90"
+            onClick={() => setShowNewMessageDialog(true)}
+          >
             <PlusCircle size={16} className="mr-1" /> New Scheduled Message
           </Button>
         </CardTitle>
@@ -145,10 +314,18 @@ export function MessageCalendar() {
                           >
                             <MessageSquare size={16} />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditMessage(msg)}
+                          >
                             <Edit size={16} />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                          >
                             <Trash size={16} />
                           </Button>
                         </div>
@@ -160,6 +337,7 @@ export function MessageCalendar() {
             </div>
           )}
           
+          {/* View Message Dialog */}
           <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -202,6 +380,70 @@ export function MessageCalendar() {
           </Dialog>
         </div>
       </CardContent>
+      
+      {/* New/Edit Message Dialog */}
+      <Dialog open={showNewMessageDialog} onOpenChange={setShowNewMessageDialog}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedMessage ? 'Edit Scheduled Message' : 'Schedule New Message'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="recipient" className="text-sm font-medium">
+                Recipient Phone Number
+              </label>
+              <div className="flex">
+                <Input
+                  id="recipient"
+                  placeholder="Enter phone number"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="message" className="text-sm font-medium">
+                Message
+              </label>
+              <Textarea
+                id="message"
+                placeholder="Type your message here..."
+                className="min-h-24"
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+              />
+            </div>
+            
+            <MessageScheduler
+              scheduledDate={scheduledDate}
+              scheduledTime={scheduledTime}
+              timezone={timezone}
+              cancelIfResponse={cancelIfResponse}
+              onDateChange={setScheduledDate}
+              onTimeChange={setScheduledTime}
+              onTimezoneChange={setTimezone}
+              onCancelIfResponseChange={setCancelIfResponse}
+            />
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowNewMessageDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleScheduleMessage}>
+                <Send className="mr-2 h-4 w-4" />
+                {selectedMessage ? 'Update Message' : 'Schedule Message'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

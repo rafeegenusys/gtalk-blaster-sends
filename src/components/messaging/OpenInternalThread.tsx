@@ -38,9 +38,10 @@ export function OpenInternalThread({
         .from('profiles')
         .select('business_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle() to handle cases where no row is returned
         
       if (profileError) throw profileError;
+      if (!profileData) throw new Error("User profile not found");
       
       // Create internal thread message
       const { error: messageError } = await supabase
@@ -48,7 +49,7 @@ export function OpenInternalThread({
         .insert({
           content: `Thread started about customer message: "${messageContent}"`,
           sender_id: user.id,
-          business_id: profileData?.business_id,
+          business_id: profileData.business_id,
           reference_message_id: messageId,
           reference_contact_id: contactId,
           is_internal: true
