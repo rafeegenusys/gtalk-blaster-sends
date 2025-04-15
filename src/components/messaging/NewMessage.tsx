@@ -1,24 +1,22 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Tag, CheckCheck, ChevronLeft, Clock, Users, User, Calendar } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronLeft, Clock, Users, User, Smile } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Template, sampleTemplates } from "@/components/templates/TemplateGrid";
 import { TemplateCard } from "@/components/templates/TemplateCard";
-import { AIAssistant } from "@/components/messaging/AIAssistant"; 
-import { CancelConditions } from "@/components/scheduler/CancelConditions";
+import { AIAssistant } from "@/components/messaging/AIAssistant";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ContactSelector } from "./components/ContactSelector";
+import { GroupSelector } from "./components/GroupSelector";
+import { MessageScheduler } from "./components/MessageScheduler";
 
 interface Contact {
   id: string;
@@ -269,97 +267,23 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
               </div>
               
               {showContactSelector && (
-                <div className="border rounded-md mt-2 overflow-hidden">
-                  <div className="p-2 border-b flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search contacts..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="border-0 h-8"
-                    />
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={() => setShowContactSelector(false)}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                  <ScrollArea className="h-48">
-                    {filteredContacts.length === 0 ? (
-                      <div className="p-4 text-center text-muted-foreground">
-                        No contacts found
-                      </div>
-                    ) : (
-                      <div>
-                        {filteredContacts.map(contact => (
-                          <div 
-                            key={contact.id} 
-                            className="p-2 hover:bg-accent cursor-pointer flex items-center justify-between"
-                            onClick={() => handleSelectContact(contact)}
-                          >
-                            <div>
-                              <p className="font-medium">{contact.name || "Unnamed"}</p>
-                              <p className="text-xs text-muted-foreground">{contact.phone}</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <CheckCheck className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </div>
+                <ContactSelector
+                  contacts={filteredContacts}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onSelectContact={handleSelectContact}
+                  onClose={() => setShowContactSelector(false)}
+                />
               )}
               
               {showGroupSelector && (
-                <div className="border rounded-md mt-2 overflow-hidden">
-                  <div className="p-2 border-b flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search groups..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="border-0 h-8"
-                    />
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={() => setShowGroupSelector(false)}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                  <ScrollArea className="h-48">
-                    {filteredGroups.length === 0 ? (
-                      <div className="p-4 text-center text-muted-foreground">
-                        No groups found
-                      </div>
-                    ) : (
-                      <div>
-                        {filteredGroups.map(group => (
-                          <div 
-                            key={group.id} 
-                            className="p-2 hover:bg-accent cursor-pointer flex items-center justify-between"
-                            onClick={() => handleSelectGroup(group)}
-                          >
-                            <div>
-                              <p className="font-medium">{group.name}</p>
-                              <p className="text-xs text-muted-foreground">{group.memberCount} members</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <CheckCheck className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </div>
+                <GroupSelector
+                  groups={filteredGroups}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onSelectGroup={handleSelectGroup}
+                  onClose={() => setShowGroupSelector(false)}
+                />
               )}
             </div>
 
@@ -382,11 +306,7 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm">
-                        <Picker 
-                          data={data}
-                          onEmojiSelect={handleEmojiSelect}
-                          theme="light"
-                        />
+                        <Smile className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
@@ -410,53 +330,16 @@ export function NewMessage({ open, onOpenChange, onSend, onBack }: NewMessagePro
                 </div>
                 
                 {showScheduler && (
-                  <div className="border rounded-md p-3 space-y-3">
-                    <h4 className="text-sm font-medium">Schedule this message</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs mb-1">Date</p>
-                        <CalendarComponent
-                          mode="single"
-                          selected={scheduledDate}
-                          onSelect={setScheduledDate}
-                          initialFocus
-                          className="border rounded-md"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs mb-1">Time</p>
-                          <Input
-                            type="time"
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                          />
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs mb-1">Timezone</p>
-                          <Select defaultValue={timezone} onValueChange={setTimezone}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                              <SelectItem value="America/Chicago">Central Time</SelectItem>
-                              <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                              <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <CancelConditions
-                          cancelIfResponse={cancelIfResponse}
-                          onCancelIfResponseChange={setCancelIfResponse}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <MessageScheduler
+                    scheduledDate={scheduledDate}
+                    scheduledTime={scheduledTime}
+                    timezone={timezone}
+                    cancelIfResponse={cancelIfResponse}
+                    onDateChange={setScheduledDate}
+                    onTimeChange={setScheduledTime}
+                    onTimezoneChange={setTimezone}
+                    onCancelIfResponseChange={setCancelIfResponse}
+                  />
                 )}
               </TabsContent>
 
