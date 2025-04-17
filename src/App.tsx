@@ -79,6 +79,7 @@ const App = () => (
               <Reports />
             </ProtectedRoute>
           } />
+          {/* Auth pages are already within AuthProvider from the top level */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,7 @@ const Auth = () => {
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signIn, signUp, resetPassword } = useAuth();
+  const auth = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showResetForm, setShowResetForm] = useState(false);
@@ -28,20 +27,30 @@ const Auth = () => {
     setError(null);
     setIsLoading(true);
     
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { error: signInError } = await auth.signIn(email, password);
+      
+      if (signInError) {
+        setError(signInError.message);
+        toast({
+          title: "Sign in failed",
+          description: signInError.message,
+          variant: "destructive",
+        });
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      console.error("Sign in exception:", err);
+      setError(err.message || "An unexpected error occurred");
       toast({
-        title: "Sign in failed",
-        description: error.message,
+        title: "Sign in error",
+        description: err.message || "An unexpected error occurred",
         variant: "destructive",
       });
-    } else {
-      navigate('/');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -55,26 +64,36 @@ const Auth = () => {
       return;
     }
     
-    const { data, error } = await signUp(email, password, businessName, fullName);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { data, error: signUpError } = await auth.signUp(email, password, businessName, fullName);
+      
+      if (signUpError) {
+        setError(signUpError.message);
+        toast({
+          title: "Sign up failed",
+          description: signUpError.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sign up successful",
+          description: "Please check your email to confirm your account.",
+        });
+        if (data?.user) {
+          navigate('/');
+        }
+      }
+    } catch (err: any) {
+      console.error("Sign up exception:", err);
+      setError(err.message || "An unexpected error occurred");
       toast({
-        title: "Sign up failed",
-        description: error.message,
+        title: "Sign up error",
+        description: err.message || "An unexpected error occurred",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sign up successful",
-        description: "Please check your email to confirm your account.",
-      });
-      if (data?.user) {
-        navigate('/');
-      }
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const handlePasswordReset = async (e: React.FormEvent) => {
@@ -82,24 +101,34 @@ const Auth = () => {
     setError(null);
     setIsLoading(true);
     
-    const { error } = await resetPassword(email);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { error: resetError } = await auth.resetPassword(email);
+      
+      if (resetError) {
+        setError(resetError.message);
+        toast({
+          title: "Reset failed",
+          description: resetError.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for reset instructions",
+        });
+        setShowResetForm(false);
+      }
+    } catch (err: any) {
+      console.error("Password reset exception:", err);
+      setError(err.message || "An unexpected error occurred");
       toast({
-        title: "Reset failed",
-        description: error.message,
+        title: "Reset error",
+        description: err.message || "An unexpected error occurred",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Reset email sent",
-        description: "Check your email for reset instructions",
-      });
-      setShowResetForm(false);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
