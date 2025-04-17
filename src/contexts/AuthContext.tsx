@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -64,35 +66,71 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log("Signing in user:", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        console.error("Sign in error:", error);
+        toast({
+          title: "Sign in failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      
       return { error };
-    } catch (error) {
-      console.error("Sign in error:", error);
+    } catch (error: any) {
+      console.error("Sign in exception:", error);
+      toast({
+        title: "Sign in error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string, businessName?: string, fullName?: string) => {
     try {
-      // Simplify the signup data to minimize potential issues
+      console.log("Signing up user:", email, "with business:", businessName);
+      
+      // Ensure metadata is valid
+      const metadata = {
+        business_name: businessName || 'My Business',
+        full_name: fullName || email.split('@')[0],
+      };
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            business_name: businessName || 'My Business',
-            full_name: fullName || email.split('@')[0],
-          },
+          data: metadata,
         },
       });
       
       if (error) {
         console.error("Signup error:", error);
+        toast({
+          title: "Signup failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else if (data?.user) {
+        console.log("User created successfully:", data.user.id);
+        toast({
+          title: "Account created",
+          description: "Your account has been created successfully!",
+        });
       }
       
       return { data, error };
     } catch (error: any) {
       console.error("Signup exception:", error);
+      toast({
+        title: "Signup error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
       return { data: null, error };
     }
   };
@@ -105,12 +143,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const resetPassword = async (email: string) => {
     try {
+      console.log("Requesting password reset for:", email);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin + '/reset-password',
       });
+      
+      if (error) {
+        console.error("Reset password error:", error);
+        toast({
+          title: "Reset failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for password reset instructions",
+        });
+      }
+      
       return { error };
-    } catch (error) {
-      console.error("Reset password error:", error);
+    } catch (error: any) {
+      console.error("Reset password exception:", error);
+      toast({
+        title: "Reset error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
       return { error };
     }
   };

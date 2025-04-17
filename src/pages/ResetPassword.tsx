@@ -18,31 +18,54 @@ const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProcessingReset, setIsProcessingReset] = useState(true);
+  const [hasRecoveryParam, setHasRecoveryParam] = useState(false);
 
   // Check if this is a password reset session on component mount
   useEffect(() => {
     const checkResetSession = async () => {
       setIsProcessingReset(true);
       
-      // Get the hash fragment from the URL - needed for password reset flow
-      const hash = window.location.hash;
-      
-      if (hash && hash.includes('type=recovery')) {
-        // Wait a bit for Supabase to process the recovery token
-        setTimeout(async () => {
-          // Check if we have a valid session after the recovery token is processed
-          const { data, error } = await supabase.auth.getSession();
+      try {
+        // Get the URL hash and search params - needed for password reset flow
+        const hash = window.location.hash;
+        const searchParams = new URLSearchParams(window.location.search);
+        
+        console.log("URL params check:", { hash, search: window.location.search });
+        
+        // Look for recovery token in URL
+        const hasRecoveryToken = 
+          hash.includes('type=recovery') || 
+          searchParams.get('type') === 'recovery';
+        
+        setHasRecoveryParam(hasRecoveryToken);
+        
+        if (hasRecoveryToken) {
+          console.log("Recovery flow detected");
           
-          console.log("Session check for password reset:", { data, error });
-          
-          if (error || !data.session) {
-            setError("Your password reset link has expired. Please request a new one.");
-          }
-          
+          // Wait a bit for Supabase to process the recovery token
+          setTimeout(async () => {
+            // Check if we have a valid session after the recovery token is processed
+            const { data, error } = await supabase.auth.getSession();
+            
+            console.log("Session check for password reset:", { 
+              hasSession: !!data.session, 
+              error: error?.message
+            });
+            
+            if (error || !data.session) {
+              setError("Your password reset link has expired. Please request a new one.");
+            }
+            
+            setIsProcessingReset(false);
+          }, 1000);
+        } else {
+          // Not a recovery flow
+          setError("Invalid password reset link. Please request a new one.");
           setIsProcessingReset(false);
-        }, 1000);
-      } else {
-        // Not a recovery flow
+        }
+      } catch (err: any) {
+        console.error("Error in reset password flow:", err);
+        setError("An error occurred while processing your password reset link");
         setIsProcessingReset(false);
       }
     };
@@ -69,14 +92,17 @@ const ResetPassword = () => {
     }
 
     try {
+      console.log("Updating password...");
       const { error } = await supabase.auth.updateUser({ 
         password: newPassword
       });
 
       if (error) {
+        console.error("Password update error:", error);
         throw error;
       }
 
+      console.log("Password updated successfully");
       toast({
         title: "Password updated",
         description: "Your password has been successfully updated.",
@@ -86,10 +112,11 @@ const ResetPassword = () => {
       await supabase.auth.signOut();
       navigate('/auth');
     } catch (error: any) {
-      setError(error.message);
+      console.error("Password update exception:", error);
+      setError(error.message || "Failed to update password");
       toast({
         title: "Failed to update password",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -154,6 +181,7 @@ const ResetPassword = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={6}
+                disabled={!hasRecoveryParam}
               />
             </div>
             <div className="space-y-2">
@@ -166,6 +194,7 @@ const ResetPassword = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
+                disabled={!hasRecoveryParam}
               />
               <p className="text-xs text-muted-foreground">
                 Password must be at least 6 characters long
@@ -176,7 +205,7 @@ const ResetPassword = () => {
             <Button 
               type="submit" 
               className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
-              disabled={isLoading}
+              disabled={isLoading || !hasRecoveryParam}
             >
               {isLoading ? "Updating..." : "Update Password"}
             </Button>
