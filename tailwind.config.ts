@@ -22,8 +22,8 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         gtalk: {
-          primary: "#00B2FF",    // Sky Blue
-          accent: "#FF4D4D",     // Red accent
+          primary: "var(--gtalk-primary)",  // Using CSS variable directly
+          accent: "var(--gtalk-accent)",    // Using CSS variable directly
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",

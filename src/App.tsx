@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Credits from "./pages/Credits"; 
 import AISettings from "./pages/AISettings";
 import Reports from "./pages/Reports";
+import ResetPassword from "./pages/ResetPassword";
 
 // Create a new QueryClient instance outside the component to avoid recreating it on every render
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

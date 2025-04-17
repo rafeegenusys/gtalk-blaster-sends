@@ -16,24 +16,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Download, FileDown } from "lucide-react";
+import { 
+  Download, 
+  FileDown,
+  Calendar,
+  CalendarRange 
+} from "lucide-react";
 import { ChartContainer } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Legend, 
+  Tooltip, 
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from "recharts";
 
 // Sample delivery status data
 const deliveryStatusData = [
   { status: "Delivered", count: 285, percentage: "85%" },
   { status: "Failed", count: 35, percentage: "10%" },
   { status: "Pending", count: 15, percentage: "5%" },
-];
-
-// Sample detailed failure reasons
-const failureReasonsData = [
-  { reason: "Invalid Number", count: 15, percentage: "42.9%" },
-  { reason: "Network Error", count: 8, percentage: "22.9%" },
-  { reason: "Carrier Blocked", count: 7, percentage: "20.0%" },
-  { reason: "Rate Limited", count: 3, percentage: "8.6%" },
-  { reason: "Unknown Error", count: 2, percentage: "5.7%" },
 ];
 
 // Chart data
@@ -43,10 +51,35 @@ const chartData = [
   { name: "Pending", value: 15 },
 ];
 
+// Sample weekly SMS data
+const weeklyData = [
+  { name: "Mon", sent: 65, received: 42 },
+  { name: "Tue", sent: 59, received: 38 },
+  { name: "Wed", sent: 82, received: 56 },
+  { name: "Thu", sent: 73, received: 48 },
+  { name: "Fri", sent: 89, received: 62 },
+  { name: "Sat", sent: 52, received: 37 },
+  { name: "Sun", sent: 74, received: 51 }
+];
+
+// Sample monthly SMS data 
+const monthlyData = [
+  { name: "Week 1", sent: 420, received: 280 },
+  { name: "Week 2", sent: 390, received: 265 },
+  { name: "Week 3", sent: 450, received: 310 },
+  { name: "Week 4", sent: 480, received: 325 }
+];
+
 const COLORS = ["#8B5CF6", "#F97316", "#0EA5E9"];
 
 export function DeliveryReports() {
-  const [period, setPeriod] = useState("today");
+  const [period, setPeriod] = useState("weekly");
+  const [messageData, setMessageData] = useState(weeklyData);
+
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod);
+    setMessageData(newPeriod === "weekly" ? weeklyData : monthlyData);
+  };
 
   return (
     <div className="space-y-6">
@@ -114,36 +147,55 @@ export function DeliveryReports() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Failure Analysis</CardTitle>
+              <CardTitle>SMS Activity</CardTitle>
               <CardDescription>
-                Common reasons for message delivery failures
+                Messages sent and received over time
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant={period === "weekly" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => handlePeriodChange("weekly")}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Weekly
+              </Button>
+              <Button 
+                variant={period === "monthly" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => handlePeriodChange("monthly")}
+              >
+                <CalendarRange className="h-4 w-4 mr-2" />
+                Monthly
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Failure Reason</TableHead>
-                    <TableHead>Count</TableHead>
-                    <TableHead>Percentage</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {failureReasonsData.map((item) => (
-                    <TableRow key={item.reason}>
-                      <TableCell>{item.reason}</TableCell>
-                      <TableCell>{item.count}</TableCell>
-                      <TableCell>{item.percentage}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <ChartContainer config={{
+              sent: { label: "Sent", color: "#8B5CF6" },
+              received: { label: "Received", color: "#0EA5E9" }
+            }}>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart 
+                  data={messageData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="sent" name="Sent" fill="var(--color-sent)" />
+                  <Bar dataKey="received" name="Received" fill="var(--color-received)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export Data
+              </Button>
             </div>
           </CardContent>
         </Card>

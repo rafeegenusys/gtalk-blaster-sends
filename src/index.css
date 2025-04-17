@@ -52,8 +52,8 @@
     --sidebar-ring: 217 91% 60%;
     
     /* GTalk additional colors */
-    --gtalk-primary: 197 100% 50%; /* #00B2FF */
-    --gtalk-accent: 0 85% 65%; /* #FF4D4D */
+    --gtalk-primary: hsl(197 100% 50%); /* #00B2FF - Using direct HSL */
+    --gtalk-accent: hsl(0 85% 65%); /* #FF4D4D - Using direct HSL */
   }
 
   .dark {
@@ -98,9 +98,9 @@
     /* GTalk Sky Blue */
     --sidebar-ring: 197 100% 50%;
     
-    /* GTalk additional colors */
-    --gtalk-primary: 197 100% 50%; /* #00B2FF */
-    --gtalk-accent: 0 85% 65%; /* #FF4D4D */
+    /* GTalk additional colors - maintain consistency with light mode */
+    --gtalk-primary: hsl(197 100% 50%); /* #00B2FF - Using direct HSL */
+    --gtalk-accent: hsl(0 85% 65%); /* #FF4D4D - Using direct HSL */
   }
 }
 
@@ -130,11 +130,11 @@
   }
   
   .gtalk-button-primary {
-    @apply bg-primary text-white rounded-md px-4 py-2 hover:bg-opacity-90 transition-colors;
+    @apply bg-[color:var(--gtalk-primary)] text-white rounded-md px-4 py-2 hover:bg-opacity-90 transition-colors;
   }
   
   .gtalk-button-accent {
-    @apply bg-accent text-white rounded-md px-4 py-2 hover:bg-opacity-90 transition-colors;
+    @apply bg-[color:var(--gtalk-accent)] text-white rounded-md px-4 py-2 hover:bg-opacity-90 transition-colors;
   }
   
   /* Additional dark mode style fixes */
@@ -154,6 +154,23 @@
     @apply bg-gray-700;
   }
 
+  /* Consistent color application for elements using GTalk primary color */
+  .text-gtalk-primary {
+    color: var(--gtalk-primary);
+  }
+  
+  .bg-gtalk-primary {
+    background-color: var(--gtalk-primary);
+  }
+  
+  .hover\:bg-gtalk-primary\/90:hover {
+    background-color: color-mix(in srgb, var(--gtalk-primary) 90%, transparent);
+  }
+  
+  .border-gtalk-primary {
+    border-color: var(--gtalk-primary);
+  }
+  
   /* Responsive utilities */
   .responsive-grid {
     @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4;
