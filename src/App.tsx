@@ -17,6 +17,7 @@ import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import Credits from "./pages/Credits"; 
 import AISettings from "./pages/AISettings";
+import Reports from "./pages/Reports";
 
 // Create a new QueryClient instance outside the component to avoid recreating it on every render
 const queryClient = new QueryClient();
@@ -70,6 +71,11 @@ const App = () => (
           <Route path="/ai-settings" element={
             <ProtectedRoute>
               <AISettings />
+            </ProtectedRoute>
+          } />
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <Reports />
             </ProtectedRoute>
           } />
           <Route path="/auth" element={<Auth />} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { MessageSquare, Users, Calendar, FileText, Settings, MessageCircle, BarChart, Menu, X, DollarSign // New import for credits icon
+import { MessageSquare, Users, Calendar, FileText, Settings, MessageCircle, BarChart, Menu, X, DollarSign, FileBarChart 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 interface SidebarProps {
@@ -32,6 +32,7 @@ export function Sidebar({
         <NavItem icon={<FileText />} label="Templates" path="/templates" active={location.pathname === '/templates'} expanded={expanded} />
         <NavItem icon={<Calendar />} label="Scheduler" path="/scheduler" active={location.pathname === '/scheduler'} expanded={expanded} />
         <NavItem icon={<MessageCircle />} label="Team Chat" path="/chat" active={location.pathname === '/chat'} expanded={expanded} />
+        <NavItem icon={<FileBarChart />} label="Reports" path="/reports" active={location.pathname === '/reports'} expanded={expanded} />
         <NavItem icon={<DollarSign />} label="Credits" path="/credits" active={location.pathname === '/credits'} expanded={expanded} />
         <NavItem icon={<Settings />} label="Settings" path="/settings" active={location.pathname === '/settings'} expanded={expanded} />
       </div>
