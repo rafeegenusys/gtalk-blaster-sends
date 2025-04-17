@@ -1,55 +1,72 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { MessageSquare, ArrowLeft, AlertCircle } from 'lucide-react';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [step, setStep] = useState<'request' | 'verification'>('request');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessingReset, setIsProcessingReset] = useState(true);
 
-  const handleRequestReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password',
-      });
-
-      if (error) {
-        throw error;
+  // Check if this is a password reset session on component mount
+  useEffect(() => {
+    const checkResetSession = async () => {
+      setIsProcessingReset(true);
+      
+      // Get the hash fragment from the URL - needed for password reset flow
+      const hash = window.location.hash;
+      
+      if (hash && hash.includes('type=recovery')) {
+        // Wait a bit for Supabase to process the recovery token
+        setTimeout(async () => {
+          // Check if we have a valid session after the recovery token is processed
+          const { data, error } = await supabase.auth.getSession();
+          
+          console.log("Session check for password reset:", { data, error });
+          
+          if (error || !data.session) {
+            setError("Your password reset link has expired. Please request a new one.");
+          }
+          
+          setIsProcessingReset(false);
+        }, 1000);
+      } else {
+        // Not a recovery flow
+        setIsProcessingReset(false);
       }
-
-      setStep('verification');
-      toast({
-        title: "Reset link sent",
-        description: "Check your email for the password reset link or code.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Failed to send reset link",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    
+    checkResetSession();
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
+
+    // Basic validation
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters long");
+      setIsLoading(false);
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setError("Passwords don't match");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.updateUser({ 
@@ -65,8 +82,11 @@ const ResetPassword = () => {
         description: "Your password has been successfully updated.",
       });
       
+      // Sign out after password reset to force a clean login
+      await supabase.auth.signOut();
       navigate('/auth');
     } catch (error: any) {
+      setError(error.message);
       toast({
         title: "Failed to update password",
         description: error.message,
@@ -77,32 +97,19 @@ const ResetPassword = () => {
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // Note: For OTP verification, Supabase typically requires using the verifyOtp method
-      // This is a simplified example; in a real application, you'd need to implement the complete flow
-      toast({
-        title: "Code verified",
-        description: "Please enter your new password.",
-      });
-      
-      // For the simplified example, we just allow them to set a new password
-    } catch (error: any) {
-      toast({
-        title: "Failed to verify code",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (isProcessingReset) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-gtalk-primary"></div>
+          <p>Processing your password reset...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="flex items-center mb-8">
         <MessageSquare className="h-10 w-10 text-gtalk-primary mr-2" />
         <h1 className="text-3xl font-bold text-gtalk-primary">GTalk</h1>
@@ -122,67 +129,59 @@ const ResetPassword = () => {
             <CardTitle className="text-2xl">Reset Password</CardTitle>
           </div>
           <CardDescription>
-            {step === 'request' 
-              ? 'Enter your email to receive a password reset link' 
-              : 'Enter the code sent to your email and set a new password'}
+            Enter your new password
           </CardDescription>
         </CardHeader>
         
-        {step === 'request' ? (
-          <form onSubmit={handleRequestReset}>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                type="submit" 
-                className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Sending..." : "Send Reset Link"}
-              </Button>
-            </CardFooter>
-          </form>
-        ) : (
-          <form onSubmit={handleResetPassword}>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Password must be at least 6 characters long
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                type="submit" 
-                className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Updating..." : "Update Password"}
-              </Button>
-            </CardFooter>
-          </form>
+        {error && (
+          <div className="px-6 mb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
         )}
+        
+        <form onSubmit={handleResetPassword}>
+          <CardContent className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 6 characters long
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              type="submit" 
+              className="w-full bg-gtalk-primary hover:bg-gtalk-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? "Updating..." : "Update Password"}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

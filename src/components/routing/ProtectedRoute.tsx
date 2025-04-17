@@ -19,6 +19,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) {
+    console.log("User not authenticated, redirecting to /auth");
     // Redirect to the auth page but save the location they were trying to access
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }

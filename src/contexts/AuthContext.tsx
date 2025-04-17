@@ -11,6 +11,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, businessName?: string, fullName?: string) => Promise<{ error: any, data: any }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,6 +41,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             description: "You have been signed out successfully.",
           });
         }
+        if (event === 'PASSWORD_RECOVERY') {
+          toast({
+            title: "Password recovery",
+            description: "Please check your email for password reset instructions.",
+          });
+        }
       }
     );
 
@@ -60,13 +67,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error };
     } catch (error) {
+      console.error("Sign in error:", error);
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string, businessName?: string, fullName?: string) => {
     try {
-      // Pass the business name and full name as meta data
+      // Simplify the signup data to minimize potential issues
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -78,8 +86,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
       
+      if (error) {
+        console.error("Signup error:", error);
+      }
+      
       return { data, error };
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Signup exception:", error);
       return { data: null, error };
     }
   };
@@ -90,6 +103,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(false);
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      return { error };
+    } catch (error) {
+      console.error("Reset password error:", error);
+      return { error };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -97,6 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signUp,
     signOut,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
